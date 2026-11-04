@@ -18,6 +18,7 @@ Use `gradlew.bat` on Windows.
 | `./gradlew :desktopApp:run` | Runs the desktop app. |
 | `./gradlew :androidApp:installDebug` | Installs the Android app. |
 | `./gradlew compileTestKotlinIosSimulatorArm64` | Compiles the shared code and its tests for iOS. Works on Windows; linking and running need a Mac. |
+| `xcodebuild test -project iosApp/iosApp.xcodeproj -scheme iosApp -destination 'platform=iOS Simulator,name=Echo Chat iPhone 18 Pro'` | On the Mac: builds the iOS app and runs its end-to-end test on the simulator. |
 
 `./gradlew test` doesn't run the shared tests. In a multiplatform build, `allTests` does.
 

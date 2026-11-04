@@ -7,7 +7,7 @@ The brief asked for two things: send a text message that appears on the right, a
 ## Where it is
 | Slice | Android | Desktop | iOS |
 |---|---|---|---|
-| 1. Text chat: send, typing dots, echo after 5 s | ✅ | ✅ | Compiles; not run yet |
+| 1. Text chat: send, typing dots, echo after 5 s | ✅ | ✅ | ✅ |
 | 2 to 6. Photos, polish, notifications, message actions, keyboard | ⬜ | ⬜ | ⬜ |
 
 The criteria and their status are in [docs/spec.md](docs/spec.md), and the choices behind the build are in [docs/decisions.md](docs/decisions.md).
@@ -17,9 +17,9 @@ The criteria and their status are in [docs/spec.md](docs/spec.md), and the choic
 - `./gradlew :androidApp:connectedDebugAndroidTest` runs the Android device tests on a running emulator or phone.
 - `./gradlew :androidApp:installDebug` installs the Android app. It runs on Android 8.0 and later.
 - `./gradlew :desktopApp:run` runs the desktop app.
-- iOS: not yet. The Xcode project is added when the app is first run on the Mac.
+- iOS, on a Mac: open `iosApp/iosApp.xcodeproj` in Xcode and run the `iosApp` scheme. Xcode builds the shared code through Gradle, so the Mac needs JDK 21 too. Test runs the iOS end-to-end test.
 
-Built with JDK 21, Android SDK 37, Kotlin 2.4.21 and Compose Multiplatform 1.12.2.
+Built with JDK 21, Android SDK 37, Xcode 27, Kotlin 2.4.21 and Compose Multiplatform 1.12.2.
 
 ## Ambiguities
 Carried over from the original:

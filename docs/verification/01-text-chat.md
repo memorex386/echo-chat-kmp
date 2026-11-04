@@ -51,6 +51,6 @@ Both were written after the code, so they weren't seen failing first.
 The keyboard's own Send key sends too, on Android.
 
 ## Not verified here
-- **iOS.** The Mac wasn't reachable over SSH, so the app hasn't been linked or run on iOS, and the iOS tests haven't run. Agreed in review: the Xcode project is written and run on the Mac once it is reachable.
+- **iOS.** The Mac wasn't reachable over SSH, so the app hasn't been linked or run on iOS, and the iOS tests haven't run. Agreed in review: the Xcode project is written and run on the Mac once it is reachable. Done the next day, in [01b-text-chat-ios.md](01b-text-chat-ios.md).
 - **Enter on desktop.** It starts a new line rather than sending, because the input allows 4 lines. In review this became KEY-05, for the keyboard slice (D11).
 - **The emoji round trip (CHAT-13)** on a device: checked by the shared test only.

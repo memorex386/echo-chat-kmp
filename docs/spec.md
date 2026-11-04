@@ -14,6 +14,7 @@ Status: ⬜ not started · 🔴 test written and failing · ✅ passing.
 Where tests run:
 - **common**: `commonTest`. It runs on the JVM here (`allTests`) and on the iOS simulator on a Mac.
 - **device**: `androidApp` device tests, on an Android phone or emulator.
+- **iOS app**: `iosAppUITests`, on the iOS simulator.
 
 ### Slice 1: text chat
 | ID | Criterion | Tests (module, where) | Status |
@@ -32,7 +33,7 @@ Where tests run:
 | CHAT-12 | A reply still arrives if the chat screen is recreated, or I leave it, while it is on its way. | `ChatRepositoryTest` (core:data, common) | ✅ |
 | CHAT-13 | Emoji survive the round trip: sending "👋🏽" gets the reply "You said: 👋🏽". | `ChatRepositoryTest` (core:data, common) | ✅ |
 
-End-to-end check on a device, in `ChatEndToEndTest` (androidApp): it types "Hello", sends it, sees the typing dots, then sees "You said: Hello" within 6 s of real time.
+End-to-end checks, in `ChatEndToEndTest` (androidApp) and `ChatEndToEndUITests` (iosApp): each types "Hello", sends it, sees the typing dots, then sees "You said: Hello" within 6 s of real time.
 
 ### Later slices
 Each is ported from the original spec when its slice starts, with any platform differences written into the criterion.

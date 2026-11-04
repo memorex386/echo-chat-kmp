@@ -17,7 +17,7 @@ The original's modules, each now multiplatform, plus one shared app module and a
 |---|---|
 | `androidApp` | `Application`, `MainActivity`. Android only. |
 | `desktopApp` | `main()` and the window. JVM only. |
-| `iosApp` | The Xcode project and its Swift entry point, built on the Mac. Not added yet: it comes when the app first runs there, so it is checked as it is written. |
+| `iosApp` | The Xcode project, its Swift entry point and the iOS end-to-end test. Built on the Mac (D12). |
 | `shared` | `EchoChatApp()`: the theme, the Navigation 3 back stack and the Koin start-up. iOS gets it as one framework, `Shared`. |
 | `feature:chat` | Chat screen, `ChatViewModel` |
 | `core:model` | `Message`, `Author`. No dependencies. |
@@ -74,3 +74,10 @@ These are unchanged:
 
 ## D11: Enter sends on desktop (2026-11-04)
 Chosen in review of slice 1. On desktop, Enter added a new line, because the input allows 4 lines, and a desktop keyboard has no Send key to press instead. As in desktop chat apps, Enter will send and Shift+Enter will start a new line (KEY-05). It is built with the keyboard slice, so slice 1 stays as the original.
+
+## D12: The iOS app, built and checked on the Mac from Windows (2026-11-04)
+- **The Xcode project** is small: one app target whose folder Xcode reads as it is, so new Swift files need no project edits. A build phase runs Gradle's `embedAndSignAppleFrameworkForXcode`, which builds the `Shared` framework for whichever simulator or phone Xcode is building for. The Swift side only starts Koin and shows `MainViewController()`.
+- **Java on the Mac.** That build phase runs Gradle, so the Mac has JDK 21 in `~/Library/Java/JavaVirtualMachines`, where macOS's own `java` finds it. Nothing in the project names a JDK path.
+- **Checked without hands.** The Mac is reached over SSH from my Windows PC, where nothing can tap the simulator. So the iOS app has its own end-to-end test, `ChatEndToEndUITests`, the counterpart of Android's device test. It finds Compose's controls through iOS accessibility: the 4-line input shows up as a text view labelled "Message". The keyboard's return key is labelled Send as well, and the test sends with it.
+- **Its own simulator.** The test runs on "Echo Chat iPhone 18 Pro", so it never touches the simulators other projects on the Mac use.
+- **iOS 17 and later.** Xcode warns that two of Compose's ICU data files were built for iOS 18.5. They hold text-processing data, not code, and the rest of the framework targets iOS 14 and 15, so the warning is accepted.
