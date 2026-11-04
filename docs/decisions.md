@@ -106,3 +106,25 @@ The whole-app test for PHOTO-05 failed on the iOS simulator only: FileKit's pick
 
 ## D17: Light status-bar icons over the photo viewer (2026-11-04)
 The viewer is black, so its status-bar icons should be light. `LightStatusBarIcons()` does this on Android, as in the original. Desktop has no status bar. On the iOS 27 simulator the system turned the icons light by itself; earlier iOS versions aren't checked.
+
+## D18: Polish carried over from the original (2026-11-04)
+These choices from the original's polish slice are unchanged:
+- **Follow new messages only from the bottom,** or when the new message is mine. Otherwise a round down-arrow appears above the input, at the right.
+- **Two thirds of the width in landscape,** 85% in portrait.
+- **Motion only for new arrivals.** New bubbles fade, rise 12 dp and grow from their own corner over 220 ms. A saved watermark stops old bubbles replaying when they scroll back into view. Photos fade in through Coil's crossfade.
+- **Photos stand on their own,** with any caption in a bubble of its own below.
+
+## D19: Unsent work in saved state, on every platform (2026-11-04)
+As in the original, the draft, an attached photo and a camera shot in progress are written to the ViewModel's `SavedStateHandle` as they change, as plain strings. `SavedStateHandle` is multiplatform now. Koin makes it from the screen's saved state when it builds the ViewModel, so `ChatViewModel` simply asks for one.
+- **Android** saves it with the activity, so it survives Android ending the app in the background. Checked on the emulator by killing the app's process, including while the camera app was open.
+- **iOS and desktop** keep it while the app runs. iOS doesn't restore a Compose app's saved state after ending it, and desktop doesn't end apps that way. CHAT-15 says so.
+
+## D20: Landscape is the chat screen's own shape (2026-11-04)
+The original read Android's screen orientation. Shared code has no orientation, so the chat measures its own size: wider than tall is landscape. That covers a phone on its side and a wide desktop window. It is measured on the whole screen, not the list, so the keyboard opening doesn't change it.
+
+## D21: Rotation in shared tests (2026-11-04)
+Compose's `StateRestorationTester` is in common code, but its save step is a stub on desktop and iOS (`TODO("Not yet implemented")`, JetBrains issue CMP-7992). `ChatScreenTest` has a small `Rotation` helper that does the same through Compose's common `SaveableStateRegistry`: it saves the screen's state, takes the screen away, and shows it again from that state. It has to bring the screen back in the same place, because saved values are matched by their place in the tree.
+
+Two other test details turned up:
+- **`assertIsNotDisplayed()` needs the node to exist.** On desktop a list doesn't create items that are off screen, so "the reply isn't shown" is checked by the top of the list still being shown.
+- **`getBoundsInRoot()` is clipped to what is visible.** To check where a tall message really ends, the test uses `getUnclippedBoundsInRoot()`. With the clipped bounds, a test that should have failed passed.

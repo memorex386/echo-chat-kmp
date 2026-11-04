@@ -1,5 +1,6 @@
 package com.echochat.feature.chat
 
+import androidx.lifecycle.SavedStateHandle
 import com.echochat.core.testing.TestChatRepository
 import com.echochat.core.testing.TestChatRepository.Sent
 import com.echochat.core.testing.TestImageStore
@@ -21,6 +22,7 @@ import kotlin.test.assertTrue
 class ChatViewModelTest {
 
     private val chatRepository = TestChatRepository()
+    private val savedState = SavedStateHandle()
     private val pickedPhoto = PlatformFile("/picker/1.jpg")
     private lateinit var viewModel: ChatViewModel
 
@@ -28,12 +30,53 @@ class ChatViewModelTest {
     fun setUp() {
         // viewModelScope runs on Dispatchers.Main, which a test has to supply on every platform.
         Dispatchers.setMain(UnconfinedTestDispatcher())
-        viewModel = ChatViewModel(chatRepository, TestImageStore())
+        viewModel = newViewModel(savedState)
     }
 
     @AfterTest
     fun tearDown() {
         Dispatchers.resetMain()
+    }
+
+    private fun newViewModel(savedState: SavedStateHandle) = ChatViewModel(savedState, chatRepository, TestImageStore())
+
+    /** What a new ViewModel gets after Android ends the app: only the values the old one saved. */
+    private fun afterAndroidEndsTheApp() =
+        newViewModel(SavedStateHandle(savedState.keys().associateWith { savedState.get<Any?>(it) }))
+
+    @Test
+    fun `CHAT-15 a half-written message survives Android ending the app`() {
+        viewModel.onDraftChange("Half a mess")
+
+        assertEquals("Half a mess", afterAndroidEndsTheApp().draft)
+    }
+
+    @Test
+    fun `CHAT-15 an attached photo survives Android ending the app`() {
+        viewModel.onPhotoPicked(pickedPhoto)
+
+        assertEquals(TestImageStore.Imported, afterAndroidEndsTheApp().attachment)
+    }
+
+    @Test
+    fun `CHAT-15 a photo the camera is still taking is attached after Android ends the app`() {
+        viewModel.startCamera()
+
+        val restored = afterAndroidEndsTheApp()
+        restored.onCameraResult(saved = true)
+
+        assertEquals(TestImageStore.Shot.image, restored.attachment)
+    }
+
+    @Test
+    fun `CHAT-15 nothing is restored once the message is sent`() {
+        viewModel.onDraftChange("Sunset")
+        viewModel.onPhotoPicked(pickedPhoto)
+        viewModel.send()
+
+        val restored = afterAndroidEndsTheApp()
+        assertEquals("", restored.draft)
+        assertNull(restored.attachment)
     }
 
     @Test

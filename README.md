@@ -9,7 +9,8 @@ The brief asked for two things: send a text message that appears on the right, a
 |---|---|---|---|
 | 1. Text chat: send, typing dots, echo after 5 s | ✅ | ✅ | ✅ |
 | 2. Photos: gallery and camera, photo echo, full-screen viewer | ✅ | ✅ Gallery only: no camera | ✅ Camera not checked: the simulator has none |
-| 3 to 6. Polish, notifications, message actions, keyboard | ⬜ | ⬜ | ⬜ |
+| 3. Polish: jump arrow, unsent work kept, landscape width, long text, photo captions, motion | ✅ | ✅ | ✅ Shared tests only |
+| 4 to 6. Notifications, message actions, keyboard | ⬜ | ⬜ | ⬜ |
 
 The criteria and their status are in [docs/spec.md](docs/spec.md), and the choices behind the build are in [docs/decisions.md](docs/decisions.md).
 
@@ -28,7 +29,7 @@ Carried over from the original:
 - **Messages sent close together.** Each message gets its own reply, 5 seconds after that message. You can keep sending while replies are on their way.
 - **"Beneath the previous message".** Replies are added to the bottom in the order they arrive. If I send two messages quickly, both come before both replies.
 - **Empty messages.** Send stays disabled until there is text or a photo, and spaces around a message are dropped.
-- **Persistence.** In memory, as the brief allows, so messages are gone when the app ends.
+- **Persistence.** In memory, as the brief allows, so messages are gone when the app ends. Unsent work is kept while the app runs, and on Android also after Android ends the app in the background.
 
 New in this version:
 - **Platforms.** Android, desktop (on the JVM, checked on Windows) and iOS, from one Kotlin codebase with Compose Multiplatform.

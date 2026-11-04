@@ -9,6 +9,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
+import coil3.request.crossfade
 import com.echochat.core.designsystem.theme.EchoChatTheme
 import com.echochat.core.model.Image
 import com.echochat.feature.chat.ChatRoute
@@ -25,10 +26,12 @@ private val navKeys = SavedStateConfiguration {
 /** The app's screens, shown from a Navigation 3 back stack. Every platform shows this. */
 @Composable
 fun EchoChatApp() {
-    // Coil loads photos as FileKit files, so one kind of path works on every platform, Windows included.
+    // Coil loads photos as FileKit files, so one kind of path works on every platform, Windows
+    // included. Photos fade in as they load.
     setSingletonImageLoaderFactory { context ->
         ImageLoader.Builder(context)
             .components { addPlatformFileSupport() }
+            .crossfade(true)
             .build()
     }
     EchoChatTheme {

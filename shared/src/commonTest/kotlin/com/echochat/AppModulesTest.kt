@@ -1,5 +1,6 @@
 package com.echochat
 
+import androidx.lifecycle.SavedStateHandle
 import com.echochat.core.data.ChatRepository
 import com.echochat.feature.chat.ChatViewModel
 import kotlinx.coroutines.Dispatchers
@@ -7,6 +8,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import org.koin.core.parameter.parametersOf
 import org.koin.dsl.koinApplication
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -32,7 +34,8 @@ class AppModulesTest {
     fun `the app modules build the chat screen and share one repository`() {
         val koin = koinApplication { modules(appModules) }.koin
 
-        koin.get<ChatViewModel>()
+        // On screen, Koin makes the SavedStateHandle from the screen's saved state; here there is none.
+        koin.get<ChatViewModel> { parametersOf(SavedStateHandle()) }
 
         assertSame(koin.get<ChatRepository>(), koin.get<ChatRepository>())
     }

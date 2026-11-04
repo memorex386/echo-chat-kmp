@@ -1,5 +1,10 @@
 package com.echochat
 
+import android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE as LANDSCAPE
+import android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT as PORTRAIT
+import android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED as UNSPECIFIED
+import android.content.res.Configuration.ORIENTATION_LANDSCAPE
+import android.content.res.Configuration.ORIENTATION_PORTRAIT
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
@@ -38,14 +43,27 @@ class ChatEndToEndTest {
 
     // Android rebuilds the activity when the screen rotates; the shared code has to survive it.
     @Test
-    fun `CHAT-08_messagesAndUnsentTextSurviveARotation`() {
+    fun `CHAT-08_messagesAndUnsentTextSurviveRotatingToLandscapeAndBack`() {
         composeRule.onNode(hasSetTextAction()).performTextInput("Before rotating")
         composeRule.onNodeWithContentDescription("Send").performClick()
-        composeRule.onNode(hasSetTextAction()).performTextInput("Still typing")
+        composeRule.onNode(hasSetTextAction()).performTextInput("Half a mess")
 
-        composeRule.activityRule.scenario.recreate()
+        try {
+            for ((requested, expected) in listOf(LANDSCAPE to ORIENTATION_LANDSCAPE, PORTRAIT to ORIENTATION_PORTRAIT)) {
+                composeRule.activityRule.scenario.onActivity { it.requestedOrientation = requested }
+                composeRule.waitUntil(timeoutMillis = 5_000) { orientation() == expected }
 
-        composeRule.onNodeWithText("Before rotating").assertIsDisplayed()
-        composeRule.onNode(hasSetTextAction()).assert(hasText("Still typing"))
+                composeRule.onNodeWithText("Before rotating").assertIsDisplayed()
+                composeRule.onNode(hasSetTextAction()).assert(hasText("Half a mess"))
+            }
+        } finally {
+            composeRule.activityRule.scenario.onActivity { it.requestedOrientation = UNSPECIFIED }
+        }
+    }
+
+    private fun orientation(): Int {
+        var orientation = 0
+        composeRule.activityRule.scenario.onActivity { orientation = it.resources.configuration.orientation }
+        return orientation
     }
 }
