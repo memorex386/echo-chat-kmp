@@ -1,0 +1,831 @@
+<title>Chat Screen Mock</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Roboto:wght@400;500&display=swap">
+<style>
+/* Layout: a review bench. State index on the left, the live phone in the middle, notes for the chosen state on the right. One column on phones. */
+:root {
+  --bg: #F2F4F3; --panel: #FFFFFF; --fg: #18201E; --muted: #56625F; --line: #D5DCDA;
+  --accent: #0E6B5C; --accent-soft: #D9EEE8; --frame: #1B2220; --frame-edge: #323B39;
+  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --font-app: "Roboto", "Segoe UI", system-ui, sans-serif;
+  /* The app's own fixed Material 3 palette, light. .phone[data-app="dark"] swaps it. */
+  --app-bg: #F5FAF8; --app-on: #161D1B; --app-on-var: #3F4946;
+  --app-primary: #0E6B5C; --app-on-primary: #FFFFFF; --app-their: #E1E9E6; --app-field: #E1E9E6;
+  --app-off-bg: rgba(22, 29, 27, .10); --app-off-fg: rgba(22, 29, 27, .38);
+  --app-kb: #D7DFDC; --app-key: #FBFDFC; --app-key-fg: #2A3331;
+  --app-avatar-bg: #FFDCC2; --app-avatar-fg: #6E3900;
+  /* Photo surfaces are black in both themes, as in every gallery app. */
+  --viewer-bg: #000000; --viewer-fg: #FFFFFF; --scrim: rgba(0, 0, 0, .6); --on-scrim: #FFFFFF;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1413; --panel: #161C1B; --fg: #E1E7E5; --muted: #98A4A1; --line: #29312F;
+    --accent: #7ED2BE; --accent-soft: #1B332D; --frame: #050807; --frame-edge: #2A3331;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1413; --panel: #161C1B; --fg: #E1E7E5; --muted: #98A4A1; --line: #29312F;
+  --accent: #7ED2BE; --accent-soft: #1B332D; --frame: #050807; --frame-edge: #2A3331;
+  color-scheme: dark;
+}
+.phone[data-app="dark"] {
+  --app-bg: #0F1513; --app-on: #DDE4E1; --app-on-var: #BEC9C5;
+  --app-primary: #7ED2BE; --app-on-primary: #00382F; --app-their: #252B29; --app-field: #252B29;
+  --app-off-bg: rgba(221, 228, 225, .12); --app-off-fg: rgba(221, 228, 225, .38);
+  --app-kb: #1B211F; --app-key: #3A423F; --app-key-fg: #DDE4E1;
+  --app-avatar-bg: #6E3900; --app-avatar-fg: #FFDCC2;
+}
+
+[hidden] { display: none !important; }
+html, body { background: var(--bg); }
+body { margin: 0; color: var(--fg); font: 400 15px/1.5 var(--font-ui); }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.shell {
+  display: grid; grid-template-columns: 230px auto minmax(0, 1fr); gap: 28px 32px; align-items: start;
+  max-width: 1240px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.intro { grid-column: 1 / -1; max-width: 70ch; }
+.eyebrow, .label { margin: 0; font: 500 12px/1.4 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+h1 { margin: 6px 0 8px; font: 600 28px/1.2 var(--font-ui); text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); }
+
+/* State index */
+.states { display: grid; gap: 12px; min-width: 0; }
+.states ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.state-btn {
+  width: 100%; display: grid; grid-template-columns: auto 1fr; gap: 0 10px; align-items: baseline;
+  padding: 7px 10px; border: 1px solid transparent; border-radius: 8px; background: none; text-align: left;
+}
+.state-btn:hover { background: var(--panel); border-color: var(--line); }
+.state-btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-soft); }
+.sid { font: 500 12px/1.6 var(--font-mono); color: var(--muted); grid-row: span 2; }
+.sname { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.stag { font-size: 13px; color: var(--muted); }
+.live-dot { display: none; font: 500 10px/1 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+.state-btn.is-live .live-dot { display: inline; }
+.flow { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.flow li { display: flex; align-items: center; gap: 6px; }
+.flow li + li::before { content: "\2192"; color: var(--muted); }
+.flow button { padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font-size: 13px; }
+.flow-note { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* Phone */
+.stage { display: grid; justify-items: center; gap: 12px; min-width: 0; }
+.phone {
+  width: min(360px, 100%); height: 740px; box-sizing: border-box; padding: 10px; border-radius: 42px;
+  background: var(--frame); box-shadow: 0 0 0 1px var(--frame-edge), 0 28px 48px -28px rgba(0, 0, 0, .45);
+}
+.screen {
+  position: relative; height: 100%; border-radius: 32px; overflow: hidden; display: flex; flex-direction: column;
+  background: var(--app-bg); color: var(--app-on); font-family: var(--font-app);
+}
+.statusbar { position: relative; flex: none; height: 30px; padding: 0 22px; display: flex; align-items: center; justify-content: space-between; font: 500 13px/1 var(--font-app); }
+.statusbar::after { content: ""; position: absolute; left: 50%; top: 9px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--frame); }
+.sb-icons { display: flex; gap: 4px; }
+.sb-icons svg { width: 14px; height: 14px; fill: currentColor; }
+.appbar { flex: none; height: 60px; padding: 0 16px; display: flex; align-items: center; gap: 12px; font: 400 20px/28px var(--font-app); }
+.avatar {
+  flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--app-avatar-bg); color: var(--app-avatar-fg); font: 500 16px/1 var(--font-app);
+}
+.avatar.sm { width: 28px; height: 28px; font-size: 13px; }
+.list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 12px 12px; }
+.list > :first-child { margin-top: auto; }
+.row { display: flex; align-items: flex-end; gap: 8px; max-width: 85%; }
+.row.mine { align-self: flex-end; }
+.row.theirs { align-self: flex-start; }
+.row.enter { animation: rise 180ms cubic-bezier(.05, .7, .1, 1) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.msg {
+  min-width: 0; box-sizing: border-box; padding: 10px 14px; border-radius: 20px;
+  font: 400 16px/22px var(--font-app); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.msg.mine { background: var(--app-primary); color: var(--app-on-primary); border-bottom-right-radius: 6px; }
+.msg.theirs { background: var(--app-their); color: var(--app-on); border-bottom-left-radius: 6px; }
+.msg.has-img { width: 216px; max-width: 100%; padding: 4px; }
+.photo { position: relative; display: block; width: 100%; padding: 0; border: 0; border-radius: 16px; overflow: hidden; background: none; }
+.photo img { display: block; width: 100%; height: auto; }
+.photo.gif img { animation: drift 2.4s ease-in-out infinite alternate; }
+@keyframes drift { from { transform: scale(1); } to { transform: scale(1.12) translate(-3%, 2%); } }
+.gif-badge { position: absolute; left: 8px; bottom: 8px; padding: 2px 6px; border-radius: 4px; background: var(--scrim); color: var(--on-scrim); font: 500 11px/1.4 var(--font-app); letter-spacing: .06em; }
+.cap { padding: 6px 10px 4px; }
+.dots { display: flex; align-items: center; gap: 5px; padding: 15px 16px; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--app-on-var); opacity: .75; animation: bounce 1.2s ease-in-out infinite; }
+.dots i:nth-child(2) { animation-delay: .15s; }
+.dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+.empty { margin: auto; max-width: 240px; text-align: center; color: var(--app-on-var); font: 400 14px/20px var(--font-app); }
+.empty p { margin: 0; }
+.empty .avatar { margin: 0 auto 12px; width: 56px; height: 56px; font-size: 24px; }
+.empty .empty-title { margin-bottom: 4px; color: var(--app-on); font: 500 16px/24px var(--font-app); }
+
+.composer { flex: none; display: flex; flex-direction: column; }
+.attachment { position: relative; align-self: flex-start; margin: 6px 0 0 60px; width: 76px; height: 76px; border-radius: 14px; overflow: hidden; }
+.attachment img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.attachment .remove {
+  position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%;
+  display: grid; place-items: center; background: var(--scrim); color: var(--on-scrim);
+}
+.attachment .remove svg { width: 16px; height: 16px; fill: currentColor; }
+.inputbar { display: flex; align-items: flex-end; gap: 4px; padding: 8px 10px 8px 4px; margin: 0; }
+.icon-btn { flex: none; width: 48px; height: 48px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; background: none; color: var(--app-on-var); }
+.icon-btn svg { width: 24px; height: 24px; fill: currentColor; transition: transform 150ms; }
+.icon-btn[aria-expanded="true"] { background: var(--app-off-bg); color: var(--app-on); }
+.icon-btn[aria-expanded="true"] svg { transform: rotate(45deg); }
+.field { flex: 1; min-width: 0; display: flex; padding: 13px 18px; border-radius: 24px; background: var(--app-field); }
+.field:focus-within { box-shadow: inset 0 0 0 2px var(--app-primary); }
+.field textarea {
+  width: 100%; height: 22px; max-height: 88px; margin: 0; padding: 0; border: 0; outline: none; resize: none;
+  overflow-y: auto; background: transparent; color: var(--app-on); font: 400 16px/22px var(--font-app);
+}
+.field textarea::placeholder { color: var(--app-on-var); }
+.send {
+  flex: none; width: 48px; height: 48px; margin-left: 4px; border: 0; border-radius: 50%; display: grid; place-items: center;
+  background: var(--app-primary); color: var(--app-on-primary); transition: background-color 120ms, color 120ms;
+}
+.send:disabled { background: var(--app-off-bg); color: var(--app-off-fg); cursor: default; }
+.send svg { width: 22px; height: 22px; fill: currentColor; }
+.panel { flex: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 16px 12px 14px; background: var(--app-kb); animation: panel-up 200ms cubic-bezier(.05, .7, .1, 1) both; }
+@keyframes panel-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.tile { display: grid; justify-items: center; gap: 6px; padding: 6px 0; border: 0; border-radius: 12px; background: none; color: var(--app-on); font: 500 13px/1.2 var(--font-app); }
+.tile-icon { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; background: var(--app-bg); color: var(--app-primary); font: 500 15px/1 var(--font-app); }
+.tile-icon svg { width: 26px; height: 26px; fill: currentColor; }
+.tile small { display: block; margin-top: 2px; font-weight: 400; font-size: 11px; color: var(--app-on-var); }
+.keyboard { flex: none; display: grid; gap: 8px; padding: 8px 4px 6px; background: var(--app-kb); }
+.kb-row { display: flex; justify-content: center; gap: 5px; }
+.key {
+  flex: 0 0 calc((100% - 45px) / 10); height: 38px; border-radius: 6px; display: grid; place-items: center;
+  background: var(--app-key); color: var(--app-key-fg); font: 400 17px/1 var(--font-app);
+}
+.key.wide { flex-basis: 16%; font-size: 13px; }
+.key.space { flex: 1 1 auto; font-size: 13px; }
+.key.act { background: var(--app-primary); color: var(--app-on-primary); }
+.key.act svg { width: 18px; height: 18px; fill: currentColor; }
+.navbar { flex: none; height: 22px; display: grid; place-items: center; }
+.navbar span { width: 108px; height: 4px; border-radius: 2px; background: var(--app-on); opacity: .4; }
+.screen.tray-open .navbar { background: var(--app-kb); }
+.viewer {
+  position: absolute; inset: 30px 0 0; z-index: 2; display: flex; flex-direction: column;
+  background: var(--viewer-bg); color: var(--viewer-fg); animation: fade-in 150ms ease-out both;
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.viewer-bar { flex: none; height: 60px; display: flex; align-items: center; gap: 8px; padding: 0 4px; }
+.viewer-bar .icon-btn { color: var(--viewer-fg); }
+.viewer-title { display: grid; font: 400 18px/22px var(--font-app); }
+.viewer-title small { font-size: 13px; line-height: 18px; opacity: .7; }
+.viewer-body { flex: 1; min-height: 0; display: grid; place-items: center; padding-bottom: 48px; }
+.viewer-body img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* Review controls under the phone */
+.bench { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.bench > button, .seg button, .switch {
+  padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font: 500 13px/1.4 var(--font-ui);
+}
+.switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.switch input { margin: 0; accent-color: var(--accent); }
+.seg { display: inline-flex; }
+.seg button:first-child { border-radius: 8px 0 0 8px; }
+.seg button:last-child { border-radius: 0 8px 8px 0; margin-left: -1px; }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); position: relative; }
+.sim { max-width: 360px; margin: 0; min-height: 1.5em; font-size: 13px; color: var(--muted); text-align: center; }
+
+/* Notes */
+.notes { display: grid; gap: 20px; min-width: 0; }
+.notes section { display: grid; gap: 10px; padding-top: 16px; border-top: 1px solid var(--line); }
+.notes section:first-child { padding-top: 0; border-top: 0; }
+.notes h2 { margin: 0; font: 600 22px/1.25 var(--font-ui); }
+.notes h3 { margin: 0; font: 600 15px/1.4 var(--font-ui); display: flex; align-items: center; gap: 8px; }
+.notes p { margin: 0; }
+dl { display: grid; grid-template-columns: 8em minmax(0, 1fr); gap: 6px 12px; margin: 0; }
+dt { color: var(--muted); font-size: 13px; padding-top: 1px; }
+dd { margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 3px 8px; border-radius: 999px; background: var(--accent-soft); font: 500 12px/1.4 var(--font-mono); }
+.tag { padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; font: 500 11px/1.3 var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.small { font-size: 13px; color: var(--muted); }
+.small strong { color: var(--fg); font-weight: 600; }
+.pending { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pending li { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: 4px 10px; align-items: center; font-size: 14px; }
+.pending .secs { font: 500 13px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.pending .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pending .bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.pending .bar i { display: block; height: 100%; background: var(--accent); }
+.pending .none { display: block; color: var(--muted); }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--font-ui); }
+th, td { text-align: left; vertical-align: top; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; color: var(--muted); }
+.review { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; }
+
+@media (max-width: 1100px) {
+  .shell { grid-template-columns: 220px minmax(0, 1fr); }
+  .notes { grid-column: 1 / -1; }
+}
+@media (max-width: 720px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .states ol { display: flex; overflow-x: auto; padding-bottom: 4px; }
+  .states li { flex: 0 0 auto; }
+  .state-btn { width: auto; }
+  .phone { height: 700px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .row.enter, .panel, .viewer, .photo.gif img, .dots i { animation: none; }
+  .send, .icon-btn svg { transition: none; }
+}
+</style>
+
+<div class="shell">
+  <header class="intro">
+    <p class="eyebrow">Take-home chat &middot; Android &middot; Compose, MVVM, Hilt, Navigation 3</p>
+    <h1>Chat screen mock</h1>
+    <p class="lede">Type in the phone and press Send, or tap + to attach a sample photo. Your message lands on the right, Echo starts typing, and the echo reply arrives on the left after a real 5 seconds. Tap any photo to open it full screen. State IDs match docs/spec.md. Everything outside the phone is a review tool, not part of the app.</p>
+  </header>
+
+  <nav class="states" aria-label="Screen states">
+    <h2 class="label">States, most common first</h2>
+    <ol id="stateList"></ol>
+    <h2 class="label">Main flow</h2>
+    <ol class="flow">
+      <li><button type="button" data-go="S-01">Empty</button></li>
+      <li><button type="button" data-go="S-02">Typing</button></li>
+      <li><button type="button" data-go="S-03">Echo is typing</button></li>
+      <li><button type="button" data-go="S-04">Replied</button></li>
+    </ol>
+    <ol class="flow">
+      <li><button type="button" data-go="S-09">Photo attached</button></li>
+      <li><button type="button" data-go="S-10">Photos</button></li>
+      <li><button type="button" data-go="S-11">Photo viewer</button></li>
+    </ol>
+    <p class="flow-note">From Replied, typing again goes back to Typing. Sending again before a reply arrives gives Quick sends. Around 8 messages gives Long chat. Back from the photo viewer returns to the chat where you left it.</p>
+  </nav>
+
+  <main class="stage">
+    <div class="phone" id="phone" data-app="light">
+      <div class="screen" id="screen">
+        <div class="statusbar" aria-hidden="true">
+          <span>12:30</span>
+          <span class="sb-icons">
+            <svg viewBox="0 0 24 24"><path d="M12 20.5 1.5 8.4C4.4 5.9 8 4.5 12 4.5s7.6 1.4 10.5 3.9z"/></svg>
+            <svg viewBox="0 0 24 24"><path d="M2 22h20V2z"/></svg>
+            <svg viewBox="0 0 24 24"><path d="M9 2h6v2h2.5v18h-11V4H9z"/></svg>
+          </span>
+        </div>
+        <div class="appbar"><span class="avatar" aria-hidden="true">E</span><span>Echo</span></div>
+        <div class="list" id="list" role="log" aria-label="Messages"></div>
+        <div class="composer">
+          <div class="attachment" id="attachment" hidden>
+            <img id="attImg" alt="Photo to send">
+            <button type="button" class="remove" id="attRemove" aria-label="Remove photo">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></svg>
+            </button>
+          </div>
+          <form class="inputbar" id="composerForm">
+            <button type="button" class="icon-btn" id="attachBtn" aria-label="Attach" aria-expanded="false" aria-controls="attachPanel">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+            </button>
+            <div class="field"><textarea id="draft" rows="1" placeholder="Message" aria-label="Message"></textarea></div>
+            <button class="send" id="send" type="submit" aria-label="Send" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5V14l8-2-8-2V3.5L22 12z"/></svg>
+            </button>
+          </form>
+        </div>
+        <div class="panel" id="attachPanel" hidden>
+          <button type="button" class="tile" data-attach="gallery">
+            <span class="tile-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm1 13h12l-4-5.5-3 3.8-2-2.5z"/></svg></span>
+            <span>Gallery</span>
+          </button>
+          <button type="button" class="tile" data-attach="camera">
+            <span class="tile-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M9 4h6l1.5 2H20a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3.5zm3 4.5a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg></span>
+            <span>Camera</span>
+          </button>
+          <button type="button" class="tile" data-attach="gif">
+            <span class="tile-icon">GIF</span>
+            <span>GIF<small>Optional</small></span>
+          </button>
+        </div>
+        <div class="keyboard" id="keyboard" aria-hidden="true" hidden></div>
+        <div class="navbar" aria-hidden="true"><span></span></div>
+        <div class="viewer" id="viewer" role="dialog" aria-label="Photo viewer" hidden>
+          <div class="viewer-bar">
+            <button type="button" class="icon-btn" id="viewerBack" aria-label="Back">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z"/></svg>
+            </button>
+            <span class="viewer-title"><span id="viewerTitle">You</span><small id="viewerSub">Photo</small></span>
+          </div>
+          <div class="viewer-body"><img id="viewerImg" alt=""></div>
+        </div>
+      </div>
+    </div>
+    <div class="bench" role="group" aria-label="Review controls">
+      <label class="switch"><input type="checkbox" id="kbToggle"> Keyboard</label>
+      <div class="seg" role="group" aria-label="App theme">
+        <button type="button" data-app-theme="light">Light</button>
+        <button type="button" data-app-theme="dark">Dark</button>
+      </div>
+      <button type="button" id="replay">Replay motion</button>
+      <button type="button" id="reload">Reload state</button>
+    </div>
+    <p class="sim" id="simNote" aria-live="polite"></p>
+  </main>
+
+  <aside class="notes" aria-label="Notes for the chosen state">
+    <section>
+      <p class="eyebrow"><span id="nId"></span> &middot; <span id="nTag"></span></p>
+      <h2 id="nName"></h2>
+      <dl>
+        <dt>When</dt><dd id="nWhen"></dd>
+        <dt>How often</dt><dd id="nFreq"></dd>
+        <dt>What I see</dt><dd id="nSee"></dd>
+        <dt>What I can do</dt><dd id="nCan"></dd>
+        <dt>Criteria</dt><dd class="chips" id="nCriteria"></dd>
+      </dl>
+      <p class="small" aria-live="polite">The phone is now showing <strong id="live"></strong></p>
+    </section>
+
+    <section>
+      <h3>Replies on their way <span class="tag">Simulated</span></h3>
+      <ul class="pending" id="pending"></ul>
+    </section>
+
+    <section>
+      <h3>Motion</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Element</th><th>Trigger</th><th>Motion</th><th>Reduced motion</th></tr></thead>
+          <tbody>
+            <tr><td>New message</td><td>A message is added</td><td>Fades in and rises 8&nbsp;dp, 180&nbsp;ms, decelerating</td><td>Appears in place</td></tr>
+            <tr><td>Typing dots</td><td>A reply is on its way</td><td>Each dot bounces 5&nbsp;dp in turn, 1.2&nbsp;s cycle, until the last reply lands</td><td>Dots sit still</td></tr>
+            <tr><td>Message list</td><td>A message is added</td><td>Scrolls smoothly to the newest message</td><td>Jumps to it</td></tr>
+            <tr><td>Attach panel</td><td>+ is tapped</td><td>Slides up 16&nbsp;dp and fades in, 200&nbsp;ms; + turns into &times;</td><td>Appears in place</td></tr>
+            <tr><td>Photo viewer</td><td>A photo is tapped</td><td>Fades in, 150&nbsp;ms (Navigation 3 transition)</td><td>Appears in place</td></tr>
+            <tr><td>Send button</td><td>Text or photo added or removed</td><td>Colour fades between enabled and disabled, 120&nbsp;ms</td><td>Changes at once</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">The typing dots and GIFs are the only loops, and the dots stop as soon as the last reply lands. Nothing is hidden at rest. Compose follows the system animation scale, so "remove animations" turns all of this off.</p>
+    </section>
+
+    <section>
+      <h3>For review</h3>
+      <ol class="review">
+        <li>One typing indicator under the newest message, from send until the last waiting reply lands.</li>
+        <li>Echo's avatar is a warm orange &ldquo;E&rdquo; on every reply and on the dots. Google Messages shows it only on the last of a run, but here replies rarely run together.</li>
+        <li>+ opens an attach panel: Gallery, Camera and an optional GIF. In the app, Gallery opens Android's photo picker and Camera opens the camera app.</li>
+        <li>Photo echo: the same photo comes back, captioned &ldquo;You said: &hellip;&rdquo; or &ldquo;You sent a photo&rdquo;.</li>
+        <li>Carried over from round one: the empty-state hint, &ldquo;You said: Hello&rdquo;, messages gathered at the bottom, and the fixed teal palette.</li>
+      </ol>
+    </section>
+  </aside>
+</div>
+
+<script>
+(() => {
+  const REPLY_DELAY_MS = 5000;
+
+  // Sample photos are painted on a canvas, so the mock ships no image files.
+  function scene(w, h, c) {
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const g = canvas.getContext("2d");
+    const sky = g.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, c.sky1);
+    sky.addColorStop(1, c.sky2);
+    g.fillStyle = sky;
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = c.sun;
+    g.beginPath();
+    g.arc(w * 0.7, h * 0.32, Math.min(w, h) * 0.1, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = c.far;
+    g.beginPath();
+    g.moveTo(0, h * 0.68);
+    g.quadraticCurveTo(w * 0.25, h * 0.45, w * 0.5, h * 0.64);
+    g.quadraticCurveTo(w * 0.75, h * 0.8, w, h * 0.58);
+    g.lineTo(w, h);
+    g.lineTo(0, h);
+    g.closePath();
+    g.fill();
+    g.fillStyle = c.near;
+    g.beginPath();
+    g.moveTo(0, h * 0.84);
+    g.quadraticCurveTo(w * 0.4, h * 0.66, w, h * 0.86);
+    g.lineTo(w, h);
+    g.lineTo(0, h);
+    g.closePath();
+    g.fill();
+    return { src: canvas.toDataURL("image/jpeg", 0.85), w, h };
+  }
+  const IMG = {
+    sunset: scene(480, 360, { sky1: "#F2A65A", sky2: "#FBE3C4", sun: "#FFF6E8", far: "#B5603B", near: "#6B3826" }),
+    lake: scene(360, 480, { sky1: "#6FA8D6", sky2: "#DDEEF7", sun: "#FFFFFF", far: "#3C6A8A", near: "#22445A" }),
+    meadow: scene(400, 300, { sky1: "#3FA796", sky2: "#E4F5D0", sun: "#FFD447", far: "#2E7D5B", near: "#1D4F3A" }),
+  };
+
+  const me = (text, img, kind) => ({ mine: true, text: text || "", img: img || null, kind: img ? (kind || "photo") : null });
+  const replyText = m => m.text ? "You said: " + m.text : m.kind === "gif" ? "You sent a GIF" : "You sent a photo";
+  const echoOf = m => ({ mine: false, text: replyText(m), img: m.img, kind: m.kind });
+  const convo = (...sent) => sent.flatMap(s => {
+    const m = typeof s === "string" ? me(s) : s;
+    return [m, echoOf(m)];
+  });
+
+  const LONG = "Here is a longer message to check wrapping. The bubble should stop at about 80% of the screen width and wrap onto as many lines as it needs, without pushing anything off the edge.";
+  const LONG_DRAFT = "A long draft: the input grows one line at a time up to four lines, then scrolls inside itself so the messages keep most of the screen. This sentence is only here to push it past four lines and show that happening.";
+  const QUESTION = me("Is the reply always five seconds?");
+  const SUNSET = me("Sunset from the hill", IMG.sunset);
+  const LAKE = me("", IMG.lake);
+  const GIF = me("", IMG.meadow, "gif");
+  const ARE_YOU = me("Are you there?");
+  const HELLO = me("Hello?");
+  const DARK_Q = me("Does this look right in the dark?");
+
+  const STATES = [
+    { id: "S-04", name: "Replied", tag: "Resting state",
+      when: "A reply has arrived and nothing is on its way.",
+      freq: "The most common resting state. Between sends, this is what is on screen.",
+      see: "Pairs of bubbles: mine on the right in the main colour, Echo's on the left in a muted fill with Echo's avatar. The newest pair sits just above the input.",
+      can: "Type and send again.", criteria: ["CHAT-04", "CHAT-06", "CHAT-11"],
+      messages: convo("Hi there", QUESTION) },
+    { id: "S-02", name: "Typing", tag: "While composing",
+      when: "Text in the input with the keyboard open.",
+      freq: "Most of the time spent writing a message.",
+      see: "The input sits directly above the keyboard. Send is enabled because there is text.",
+      can: "Press Send, or the send key on the keyboard.", criteria: ["CHAT-02"],
+      messages: convo("Hi there"), draft: "Is the reply always five seconds?", keyboard: true },
+    { id: "S-03", name: "Echo is typing", tag: "5 s per send",
+      when: "I have sent a message and its reply is on its way.",
+      freq: "The 5 seconds after every send.",
+      see: "My message on the right and an empty input. Under it, Echo's avatar and three bouncing dots. Leave it and the dots turn into the reply.",
+      can: "Keep typing or sending.", criteria: ["CHAT-01", "CHAT-03", "CHAT-04", "CHAT-10"],
+      messages: [...convo("Hi there"), QUESTION], pending: [{ msg: QUESTION, in: 5000 }] },
+    { id: "S-01", name: "Empty", tag: "Once per launch",
+      when: "No messages yet and an empty input.",
+      freq: "Every launch, until the first send. Messages live in memory, so every launch starts here.",
+      see: "Echo's avatar and a short hint that replies arrive 5 seconds after sending. Send is disabled.",
+      can: "Type a message or attach a photo.", criteria: ["CHAT-02", "CHAT-09"], messages: [] },
+    { id: "S-06", name: "Long chat", tag: "After ~8 messages",
+      when: "More messages than fit on screen.",
+      freq: "Once a conversation passes about 8 messages on a phone.",
+      see: "The newest message is in view and older ones scroll off the top. Every new message scrolls the list to the bottom.",
+      can: "Scroll back through older messages.", criteria: ["CHAT-07"],
+      messages: convo("Morning!", "Testing the delay", "One", "Two", "Three", "Still with me?", "This one should be in view") },
+    { id: "S-05", name: "Quick sends", tag: "Sending fast",
+      when: "Two messages sent a second apart, both replies on their way.",
+      freq: "Whenever I send again before the reply arrives.",
+      see: "Both my messages and one typing indicator. The replies land in the same order: the first in 4 s, the second a second later. The dots stay until the last one lands.",
+      can: "Keep sending. Each message gets its own reply.", criteria: ["CHAT-05", "CHAT-10"],
+      messages: [...convo("Hi there"), ARE_YOU, HELLO], pending: [{ msg: ARE_YOU, in: 4000 }, { msg: HELLO, in: 5000 }] },
+    { id: "S-09", name: "Photo attached", tag: "Before sending a photo",
+      when: "A photo is picked or taken but not sent yet.",
+      freq: "Once or twice a demo.",
+      see: "A thumbnail above the input with a remove button. Send is enabled even with no text. A caption is optional.",
+      can: "Add or edit a caption, send, or remove the photo.", criteria: ["PHOTO-01", "PHOTO-02"],
+      messages: convo("Hi there"), attachment: { img: IMG.sunset, kind: "photo" }, draft: "Sunset from the hill" },
+    { id: "S-10", name: "Photos", tag: "After sending a photo",
+      when: "Photos in the conversation.",
+      freq: "After every photo sent.",
+      see: "Photo bubbles with the caption under the image. Echo's echo shows the same photo with “You said: …”, or “You sent a photo” when there was no caption.",
+      can: "Tap any photo to open it full screen.", criteria: ["PHOTO-03", "PHOTO-04"],
+      messages: convo("Hi there", SUNSET, LAKE) },
+    { id: "S-11", name: "Photo viewer", tag: "After tapping a photo",
+      when: "A photo is open full screen.",
+      freq: "When a photo is tapped.",
+      see: "The photo fitted to the screen on black, with a back arrow and who sent it. Replies keep arriving in the chat behind it.",
+      can: "Go back to the chat, where it was left.", criteria: ["PHOTO-05", "CHAT-12"],
+      messages: convo("Hi there", SUNSET, LAKE), viewer: SUNSET },
+    { id: "S-07", name: "Long text", tag: "Occasional",
+      when: "A long message in the list and a long unsent draft.",
+      freq: "Occasional long messages.",
+      see: "Bubbles wrap at about 80% of the screen width. The input grows to 4 lines, then scrolls inside itself.",
+      can: "Send the long draft.", criteria: ["Visual only"],
+      messages: convo(LONG), draft: LONG_DRAFT },
+    { id: "S-12", name: "GIF", tag: "Optional, rare",
+      when: "A GIF was inserted from the keyboard and sent.",
+      freq: "Rare. Built last, only if time allows.",
+      see: "An animated image with a GIF label, echoed back with “You sent a GIF”. The loop stops with reduced motion.",
+      can: "Tap it to view it full screen.", criteria: ["GIF-01"],
+      messages: convo("Hi there", GIF) },
+    { id: "S-08", name: "Dark theme", tag: "System dark",
+      when: "The phone is in dark theme.",
+      freq: "Whenever the system theme is dark.",
+      see: "The same layouts in the dark palette: light teal for my bubbles, dark grey for Echo's, and the avatar in deep orange.",
+      can: "The same as in light theme.", criteria: ["Visual only"],
+      messages: [...convo("Hi there", SUNSET), DARK_Q], pending: [{ msg: DARK_Q, in: 5000 }], theme: "dark" },
+  ];
+  const byId = id => STATES.find(s => s.id === id);
+
+  const $ = id => document.getElementById(id);
+  const phone = $("phone"), screen = $("screen"), list = $("list"), draft = $("draft"), sendBtn = $("send");
+  const keyboardEl = $("keyboard"), kbToggle = $("kbToggle"), stateList = $("stateList"), pendingEl = $("pending");
+  const attachBtn = $("attachBtn"), panelEl = $("attachPanel"), attachEl = $("attachment"), attImg = $("attImg");
+  const viewerEl = $("viewer"), viewerImg = $("viewerImg"), simNote = $("simNote");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  let messages = [];
+  let pending = [];
+  let nextId = 1;
+  let selected = "S-04";
+  let keyboard = false;
+  let panelOpen = false;
+  let attachment = null;
+  let viewer = null;
+  let typingShown = false;
+
+  const sendIcon = '<svg viewBox="0 0 24 24"><path d="M3 20.5V14l8-2-8-2V3.5L22 12z"/></svg>';
+  keyboardEl.innerHTML = ["qwertyuiop", "asdfghjkl", "zxcvbnm"]
+    .map(row => '<div class="kb-row">' + [...row].map(k => '<span class="key">' + k + "</span>").join("") + "</div>")
+    .join("") + '<div class="kb-row"><span class="key wide">?123</span><span class="key space">English</span><span class="key wide act">' + sendIcon + "</span></div>";
+
+  stateList.innerHTML = STATES.map(s =>
+    '<li><button type="button" class="state-btn" data-state="' + s.id + '" aria-pressed="false">' +
+    '<span class="sid">' + s.id + '</span><span class="sname">' + s.name + '<span class="live-dot">Live</span></span>' +
+    '<span class="stag">' + s.tag + "</span></button></li>").join("");
+
+  function avatar() {
+    const a = document.createElement("span");
+    a.className = "avatar sm";
+    a.setAttribute("aria-hidden", "true");
+    a.textContent = "E";
+    return a;
+  }
+
+  function messageRow(m, animate) {
+    const row = document.createElement("div");
+    row.className = "row " + (m.mine ? "mine" : "theirs") + (animate ? " enter" : "");
+    if (!m.mine) row.append(avatar());
+    const bubble = document.createElement("div");
+    bubble.className = "msg " + (m.mine ? "mine" : "theirs") + (m.img ? " has-img" : "");
+    const who = document.createElement("span");
+    who.className = "sr";
+    who.textContent = m.mine ? "You: " : "Echo: ";
+    bubble.append(who);
+    if (m.img) {
+      const photo = document.createElement("button");
+      photo.type = "button";
+      photo.className = "photo" + (m.kind === "gif" ? " gif" : "");
+      photo.setAttribute("aria-label", "Open " + (m.kind === "gif" ? "GIF" : "photo") + " from " + (m.mine ? "you" : "Echo"));
+      const img = document.createElement("img");
+      img.src = m.img.src;
+      img.width = m.img.w;
+      img.height = m.img.h;
+      img.alt = "";
+      photo.append(img);
+      if (m.kind === "gif") {
+        const badge = document.createElement("span");
+        badge.className = "gif-badge";
+        badge.textContent = "GIF";
+        photo.append(badge);
+      }
+      photo.addEventListener("click", () => openViewer(m));
+      bubble.append(photo);
+    }
+    if (m.text) {
+      const text = document.createElement(m.img ? "div" : "span");
+      if (m.img) text.className = "cap";
+      text.textContent = m.text;
+      bubble.append(text);
+    }
+    row.append(bubble);
+    return row;
+  }
+
+  function typingRow(animate) {
+    const row = document.createElement("div");
+    row.className = "row theirs" + (animate ? " enter" : "");
+    const dots = document.createElement("div");
+    dots.className = "msg theirs dots";
+    dots.setAttribute("role", "status");
+    dots.setAttribute("aria-label", "Echo is typing");
+    dots.innerHTML = "<i></i><i></i><i></i>";
+    row.append(avatar(), dots);
+    return row;
+  }
+
+  function renderList(animateId) {
+    const typing = pending.length > 0;
+    const animateTyping = typing && !typingShown;
+    typingShown = typing;
+    if (!messages.length && !typing) {
+      list.innerHTML = '<div class="empty"><span class="avatar" aria-hidden="true">E</span><p class="empty-title">No messages yet</p><p>Send a message and Echo replies 5 seconds later.</p></div>';
+      return;
+    }
+    const rows = messages.map(m => messageRow(m, m.id === animateId));
+    if (typing) rows.push(typingRow(animateTyping));
+    list.replaceChildren(...rows);
+  }
+
+  function scrollToEnd(smooth) {
+    list.scrollTo({ top: list.scrollHeight, behavior: smooth && !reduceMotion.matches ? "smooth" : "auto" });
+  }
+
+  function scheduleReply(msg, delay) {
+    const p = { msg, due: performance.now() + delay };
+    p.timer = setTimeout(() => {
+      pending = pending.filter(x => x !== p);
+      const reply = { ...echoOf(msg), id: nextId++ };
+      messages.push(reply);
+      renderList(reply.id);
+      scrollToEnd(true);
+      refresh();
+    }, delay);
+    pending.push(p);
+  }
+
+  function send() {
+    const text = draft.value.trim();
+    if (!text && !attachment) return;
+    const m = { ...me(text, attachment && attachment.img, attachment && attachment.kind), id: nextId++ };
+    messages.push(m);
+    draft.value = "";
+    attachment = null;
+    panelOpen = false;
+    scheduleReply(m, REPLY_DELAY_MS);
+    renderList(m.id);
+    autosize();
+    refresh();
+    scrollToEnd(true);
+  }
+
+  function autosize() {
+    draft.style.height = "auto";
+    draft.style.height = Math.min(draft.scrollHeight, 88) + "px";
+  }
+
+  function setAppTheme(theme) {
+    phone.dataset.app = theme;
+    document.querySelectorAll("[data-app-theme]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.appTheme === theme)));
+  }
+
+  function openViewer(m) {
+    viewer = m;
+    refresh();
+    $("viewerBack").focus();
+  }
+
+  function closeViewer() {
+    viewer = null;
+    refresh();
+  }
+
+  function liveStateId() {
+    if (viewer) return "S-11";
+    if (attachment) return "S-09";
+    if (pending.length > 1) return "S-05";
+    if (pending.length === 1) return "S-03";
+    if (keyboard && draft.value.trim()) return "S-02";
+    if (!messages.length) return "S-01";
+    const last = messages[messages.length - 1];
+    if (last.kind === "gif") return "S-12";
+    if (last.img) return "S-10";
+    if (list.scrollHeight > list.clientHeight + 1) return "S-06";
+    return "S-04";
+  }
+
+  function renderPending() {
+    if (!pending.length) {
+      pendingEl.innerHTML = '<li class="none">Nothing on its way. Send something to start a 5-second reply.</li>';
+      return;
+    }
+    const now = performance.now();
+    pendingEl.replaceChildren(...pending.map(p => {
+      const left = Math.max(0, p.due - now);
+      const li = document.createElement("li");
+      const secs = document.createElement("span");
+      secs.className = "secs";
+      secs.textContent = (left / 1000).toFixed(1) + " s";
+      const what = document.createElement("span");
+      what.className = "what";
+      what.textContent = p.msg.text ? "Reply to “" + p.msg.text + "”" : "Reply to your " + (p.msg.kind === "gif" ? "GIF" : "photo");
+      const bar = document.createElement("span");
+      bar.className = "bar";
+      const fill = document.createElement("i");
+      fill.style.width = (100 - (left / REPLY_DELAY_MS) * 100) + "%";
+      bar.append(fill);
+      li.append(secs, what, bar);
+      return li;
+    }));
+  }
+
+  function renderNotes() {
+    const s = byId(selected);
+    $("nId").textContent = s.id;
+    $("nTag").textContent = s.tag;
+    $("nName").textContent = s.name;
+    $("nWhen").textContent = s.when;
+    $("nFreq").textContent = s.freq;
+    $("nSee").textContent = s.see;
+    $("nCan").textContent = s.can;
+    $("nCriteria").replaceChildren(...s.criteria.map(c => {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.textContent = c;
+      return chip;
+    }));
+    stateList.querySelectorAll(".state-btn").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.state === selected)));
+  }
+
+  function refresh() {
+    sendBtn.disabled = !draft.value.trim() && !attachment;
+    keyboardEl.hidden = !keyboard || panelOpen;
+    panelEl.hidden = !panelOpen;
+    attachBtn.setAttribute("aria-expanded", String(panelOpen));
+    attachEl.hidden = !attachment;
+    if (attachment && attImg.src !== attachment.img.src) attImg.src = attachment.img.src;
+    screen.classList.toggle("tray-open", keyboard || panelOpen);
+    kbToggle.checked = keyboard;
+    viewerEl.hidden = !viewer;
+    if (viewer) {
+      viewerImg.src = viewer.img.src;
+      $("viewerTitle").textContent = viewer.mine ? "You" : "Echo";
+      $("viewerSub").textContent = viewer.kind === "gif" ? "GIF" : "Photo";
+    }
+    renderPending();
+    const live = byId(liveStateId());
+    $("live").textContent = live.id + " " + live.name + (phone.dataset.app === "dark" ? ", dark theme" : "");
+    stateList.querySelectorAll(".state-btn").forEach(b => b.classList.toggle("is-live", b.dataset.state === live.id));
+  }
+
+  function load(id) {
+    const s = byId(id);
+    pending.forEach(p => clearTimeout(p.timer));
+    pending = [];
+    messages = (s.messages || []).map(m => ({ ...m, id: nextId++ }));
+    draft.value = s.draft || "";
+    attachment = s.attachment || null;
+    keyboard = !!s.keyboard;
+    panelOpen = false;
+    viewer = s.viewer ? messages.find(m => m.img === s.viewer.img && m.mine) : null;
+    if (s.theme) setAppTheme(s.theme);
+    (s.pending || []).forEach(p => scheduleReply(messages.find(m => m.text === p.msg.text && m.mine) || p.msg, p.in));
+    selected = id;
+    simNote.textContent = "";
+    typingShown = pending.length > 0;
+    renderList(null);
+    refresh();
+    autosize();
+    scrollToEnd(false);
+    renderNotes();
+  }
+
+  const SIM = {
+    gallery: { attach: { img: IMG.sunset, kind: "photo" }, note: "Simulated: the app opens Android's photo picker. This attaches a sample photo." },
+    camera: { attach: { img: IMG.lake, kind: "photo" }, note: "Simulated: the app opens the camera app. This attaches a sample shot." },
+    gif: { attach: { img: IMG.meadow, kind: "gif" }, note: "Simulated: in the app, GIFs come from the keyboard's GIF tab. Optional feature." },
+  };
+
+  $("composerForm").addEventListener("submit", e => { e.preventDefault(); send(); draft.focus(); });
+  draft.addEventListener("input", () => { autosize(); refresh(); });
+  draft.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+  });
+  attachBtn.addEventListener("click", () => { panelOpen = !panelOpen; refresh(); scrollToEnd(false); });
+  panelEl.addEventListener("click", e => {
+    const tile = e.target.closest("[data-attach]");
+    if (!tile) return;
+    const sim = SIM[tile.dataset.attach];
+    attachment = sim.attach;
+    panelOpen = false;
+    simNote.textContent = sim.note;
+    refresh();
+    scrollToEnd(false);
+    draft.focus();
+  });
+  $("attRemove").addEventListener("click", () => { attachment = null; refresh(); draft.focus(); });
+  $("viewerBack").addEventListener("click", closeViewer);
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    if (viewer) closeViewer();
+    else if (panelOpen) { panelOpen = false; refresh(); }
+  });
+  kbToggle.addEventListener("change", () => { keyboard = kbToggle.checked; if (keyboard) panelOpen = false; refresh(); scrollToEnd(false); });
+  document.querySelectorAll("[data-app-theme]").forEach(b => b.addEventListener("click", () => { setAppTheme(b.dataset.appTheme); refresh(); }));
+  stateList.addEventListener("click", e => { const b = e.target.closest("[data-state]"); if (b) load(b.dataset.state); });
+  document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => load(b.dataset.go)));
+  $("reload").addEventListener("click", () => load(selected));
+  $("replay").addEventListener("click", () => {
+    const rows = list.querySelectorAll(".row");
+    const last = rows[rows.length - 1];
+    if (!last) return;
+    last.classList.remove("enter");
+    void last.offsetWidth;
+    last.classList.add("enter");
+    list.scrollTo({ top: 0, behavior: "auto" });
+    scrollToEnd(true);
+  });
+  setInterval(() => { if (pending.length) renderPending(); }, 100);
+
+  const root = document.documentElement;
+  const pageDark = root.dataset.theme ? root.dataset.theme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  setAppTheme(pageDark ? "dark" : "light");
+  load(selected);
+})();
+</script>

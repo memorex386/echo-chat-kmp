@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="echo_name">Echo</string>
+    <string name="echo_initial">E</string>
+    <string name="echo_typing">Echo is typing</string>
+    <string name="empty_title">No messages yet</string>
+    <string name="empty_hint">Send a message and Echo replies 5 seconds later.</string>
+    <string name="message_placeholder">Message</string>
+    <string name="send">Send</string>
+</resources>
