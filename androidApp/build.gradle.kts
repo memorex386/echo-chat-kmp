@@ -17,6 +17,8 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.koin.android)
 
+    // For the photo's content link, which the device test checks through the real FileProvider.
+    androidTestImplementation(project(":feature:chat"))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)

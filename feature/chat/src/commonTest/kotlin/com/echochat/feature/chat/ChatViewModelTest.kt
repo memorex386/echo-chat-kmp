@@ -5,11 +5,17 @@ import com.echochat.core.testing.TestChatRepository
 import com.echochat.core.testing.TestChatRepository.Sent
 import com.echochat.core.testing.TestImageStore
 import com.echochat.core.testing.TestNotifier
+import com.echochat.core.model.Author
+import com.echochat.core.model.Message
 import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -25,6 +31,7 @@ class ChatViewModelTest {
     private val chatRepository = TestChatRepository()
     private val savedState = SavedStateHandle()
     private val pickedPhoto = PlatformFile("/picker/1.jpg")
+    private val imageStore = TestImageStore()
     private lateinit var viewModel: ChatViewModel
 
     @BeforeTest
@@ -40,7 +47,55 @@ class ChatViewModelTest {
     }
 
     private fun newViewModel(savedState: SavedStateHandle) =
-        ChatViewModel(savedState, chatRepository, TestImageStore(), TestNotifier())
+        ChatViewModel(savedState, chatRepository, imageStore, TestNotifier())
+
+    private fun TestScope.collectEvents(): List<ChatEvent> {
+        val events = mutableListOf<ChatEvent>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.toList(events) }
+        return events
+    }
+
+    @Test
+    fun `ACTION-05 deleting hides the message and offers to undo it`() = runTest {
+        val events = collectEvents()
+        val oops = Message(7, Author.Me, "Oops")
+
+        viewModel.delete(oops)
+        assertEquals(listOf(7L), chatRepository.deleted)
+        assertEquals(listOf<ChatEvent>(ChatEvent.Deleted(oops)), events)
+
+        viewModel.undoDelete(oops)
+        assertEquals(emptyList(), chatRepository.deleted)
+    }
+
+    @Test
+    fun `ACTION-04 saving a photo to the phone's photos says whether it worked`() = runTest {
+        val events = collectEvents()
+        val photo = Message(8, Author.Echo, "", TestImageStore.Imported)
+
+        viewModel.savePhoto(photo)
+        imageStore.saveWorks = false
+        viewModel.savePhoto(photo)
+
+        assertEquals(listOf(ChatEvent.PhotoSaved, ChatEvent.PhotoNotSaved), events)
+        assertEquals(listOf(TestImageStore.Imported), imageStore.saved)
+    }
+
+    // Desktop's Save dialog: the place I chose is confirmation enough, so only a failure is mentioned.
+    @Test
+    fun `ACTION-04 saving a photo where a Save dialog chose says only when it couldn't`() = runTest {
+        val events = collectEvents()
+        val photo = Message(8, Author.Echo, "", TestImageStore.Imported)
+        val chosen = PlatformFile("/Pictures/sunset.jpg")
+
+        viewModel.savePhotoAs(photo, chosen)
+        assertEquals(listOf(TestImageStore.Imported), imageStore.saved)
+        assertEquals(emptyList(), events)
+
+        imageStore.saveWorks = false
+        viewModel.savePhotoAs(photo, chosen)
+        assertEquals(listOf<ChatEvent>(ChatEvent.PhotoNotSaved), events)
+    }
 
     /** What a new ViewModel gets after Android ends the app: only the values the old one saved. */
     private fun afterAndroidEndsTheApp() =

@@ -12,4 +12,7 @@ interface MessageDao {
 
     /** Stores [reply] and marks message [repliedToId] as answered, in one step. Returns the reply's id. */
     suspend fun insertReply(reply: MessageEntity, repliedToId: Long): Long
+
+    /** Marks message [id] as deleted, or not. */
+    suspend fun setDeleted(id: Long, deleted: Boolean)
 }

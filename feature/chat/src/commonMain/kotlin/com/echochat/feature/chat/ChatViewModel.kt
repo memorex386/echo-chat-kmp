@@ -8,12 +8,16 @@ import com.echochat.core.data.CameraShot
 import com.echochat.core.data.ChatRepository
 import com.echochat.core.data.ImageStore
 import com.echochat.core.model.Image
+import com.echochat.core.model.Message
 import com.echochat.core.notifications.Notifier
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.absolutePath
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -91,6 +95,38 @@ class ChatViewModel(
         draft = ""
         attachment = null
         viewModelScope.launch { chatRepository.send(text, image) }
+    }
+
+    private val pendingEvents = Channel<ChatEvent>(Channel.BUFFERED)
+
+    /** Snackbars to show: a delete to undo, or whether a photo was saved. */
+    val events: Flow<ChatEvent> = pendingEvents.receiveAsFlow()
+
+    fun delete(message: Message) {
+        viewModelScope.launch {
+            chatRepository.delete(message.id)
+            pendingEvents.send(ChatEvent.Deleted(message))
+        }
+    }
+
+    fun undoDelete(message: Message) {
+        viewModelScope.launch { chatRepository.undoDelete(message.id) }
+    }
+
+    /** Saves a copy of the message's photo to the phone's photos, and says whether it worked. */
+    fun savePhoto(message: Message) {
+        val image = message.image ?: return
+        viewModelScope.launch {
+            pendingEvents.send(if (imageStore.saveToPhotos(image)) ChatEvent.PhotoSaved else ChatEvent.PhotoNotSaved)
+        }
+    }
+
+    /** Saves a copy of the message's photo where a Save dialog chose. That choice is confirmation enough, so only a failure is mentioned. */
+    fun savePhotoAs(message: Message, destination: PlatformFile) {
+        val image = message.image ?: return
+        viewModelScope.launch {
+            if (!imageStore.saveCopy(image, destination)) pendingEvents.send(ChatEvent.PhotoNotSaved)
+        }
     }
 }
 

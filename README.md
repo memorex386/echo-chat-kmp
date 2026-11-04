@@ -11,7 +11,8 @@ The brief asked for two things: send a text message that appears on the right, a
 | 2. Photos: gallery and camera, photo echo, full-screen viewer | ✅ | ✅ Gallery only: no camera | ✅ Camera not checked: the simulator has none |
 | 3. Polish: jump arrow, unsent work kept, landscape width, long text, photo captions, motion | ✅ | ✅ | ✅ Shared tests only |
 | 4. Notifications: a reply while away notifies, tapping it opens the chat | ✅ | ✅ Minimized not checked by hand | ✅ |
-| 5 and 6. Message actions, keyboard | ⬜ | ⬜ | ⬜ |
+| 5. Message actions: copy, save, delete with Undo, from a long-press or right-click | ✅ | ✅ Save opens a Save dialog | ✅ |
+| 6. Keyboard | ⬜ | ⬜ | ⬜ |
 
 The criteria and their status are in [docs/spec.md](docs/spec.md), and the choices behind the build are in [docs/decisions.md](docs/decisions.md).
 

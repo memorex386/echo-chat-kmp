@@ -11,6 +11,8 @@ data class MessageEntity(
     val text: String,
     val imagePath: String? = null,
     val awaitingReply: Boolean = false,
+    /** Hidden from the chat but kept, so Undo can bring it back in the same place. */
+    val deleted: Boolean = false,
 )
 
 fun MessageEntity.asMessage() = Message(

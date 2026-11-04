@@ -18,9 +18,13 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
+import com.echochat.feature.chat.sharedPhotoUri
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 // Runs on a real device or emulator, with the real 5-second wait. Messages live as long as
 // the app process, so each test sends text of its own.
@@ -65,6 +69,21 @@ class ChatEndToEndTest {
         } finally {
             composeRule.activityRule.scenario.onActivity { it.requestedOrientation = UNSPECIFIED }
         }
+    }
+
+    // ACTION-03 through the real FileProvider, which Robolectric can't run on Windows. It reads the
+    // link rather than the clipboard: the emulator copies each clip to the computer and back as text.
+    @Test
+    fun aCopiedPhotoIsSharedAsAContentLinkOtherAppsCanOpen() {
+        val app = composeRule.activity.application
+        val photo = File(app.cacheDir, "images/sunset.jpg").apply { parentFile?.mkdirs(); writeBytes(byteArrayOf(1, 2, 3)) }
+
+        val shared = sharedPhotoUri(app, photo.path)
+
+        assertEquals("content", shared.scheme)
+        assertEquals("${app.packageName}.images", shared.authority)
+        assertEquals("image/jpeg", app.contentResolver.getType(shared))
+        assertArrayEquals(byteArrayOf(1, 2, 3), app.contentResolver.openInputStream(shared)!!.use { it.readBytes() })
     }
 
     private fun orientation(): Int {

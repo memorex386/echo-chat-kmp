@@ -22,8 +22,9 @@ class DefaultChatRepository(
 ) : ChatRepository {
 
     override val messages: Flow<List<Message>> =
-        messageDao.observeAll().map { rows -> rows.map(MessageEntity::asMessage) }
+        messageDao.observeAll().map { rows -> rows.filterNot(MessageEntity::deleted).map(MessageEntity::asMessage) }
 
+    // Deleted messages count too: a reply already on its way still arrives (ACTION-06).
     override val isReplying: Flow<Boolean> =
         messageDao.observeAll().map { rows -> rows.any(MessageEntity::awaitingReply) }.distinctUntilChanged()
 
@@ -47,4 +48,8 @@ class DefaultChatRepository(
             notifier.notifyReply(stored.copy(id = replyId).asMessage())
         }
     }
+
+    override suspend fun delete(id: Long) = messageDao.setDeleted(id, deleted = true)
+
+    override suspend fun undoDelete(id: Long) = messageDao.setDeleted(id, deleted = false)
 }

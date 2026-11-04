@@ -10,6 +10,12 @@ interface ImageStore {
 
     /** A new, empty file for the camera app to save a photo into. */
     fun newCameraShot(): CameraShot
+
+    /** Saves a copy of [image] to the phone's photos. Returns whether it worked. */
+    suspend fun saveToPhotos(image: Image): Boolean
+
+    /** Saves a copy of [image] at [destination], a file chosen in a Save dialog. Returns whether it worked. */
+    suspend fun saveCopy(image: Image, destination: PlatformFile): Boolean
 }
 
 /** Where the camera app writes the photo ([file]), and how the chat then shows it ([image]). */

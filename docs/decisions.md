@@ -158,3 +158,36 @@ The photo viewer counts as away on every platform: it takes the chat's place on 
 - **Device and simulator tests allow notifications.** Android's end-to-end test grants the permission before it starts, so the first send doesn't stop for the prompt. The iOS test taps Allow when iOS asks, and a new iOS test sends, goes Home, sees the banner, taps it and lands back in the chat.
 - **The notification centre needs an app.** `UNUserNotificationCenter` fails in the shared tests on the iOS simulator, which run without an app bundle. So the iOS tray looks it up only when it first posts, and the iOS app installs the delegate as it starts, rather than Koin.
 - **Swift doesn't see Kotlin's default arguments.** `initKoin` now takes the platform's own set-up, such as Android's context, so Swift calls a separate `initKoin()` with none.
+
+## D26: Message actions carried over, with right-click on desktop (2026-11-04)
+The original's message actions are unchanged:
+- Long-pressing a bubble opens a small menu at it: Copy and Delete for text, and Save, Copy and Delete for a photo. A caption is text, so it gets the text menu.
+- Delete removes only the pressed message. The store marks it as deleted rather than removing it, so Undo brings it back in the same place. A reply already on its way still arrives.
+- The Undo snackbar is Material's short one, about 4 seconds, set explicitly: with an action, Material's default is to stay until tapped.
+
+New in this version:
+- **Right-click opens the same menu**, chosen in review, because desktop users expect it. It works wherever there is a mouse, so on Android and iPad too.
+- **The menu is Material's on every platform.** It isn't Windows' or iOS's own context menu.
+
+## D27: Copying on each platform (2026-11-04)
+- **Text** goes through Compose's multiplatform clipboard as each platform's own clip: Android's `ClipData`, iOS's plain text, and AWT's `StringSelection` on desktop.
+- **Photos:**
+  - **Android** copies a content link through a `FileProvider`, as the original did, and Android lets the app that pastes it read the photo. The provider, `<package>.images`, is declared in `feature:chat` and covers only the cache's `images` folder.
+  - **iOS** puts the picture on `UIPasteboard`, because Compose's iOS clip holds text only. Compose 1.12 deprecates `Clipboard.nativeClipboard` in favour of platform extensions but has none for iOS yet, so that one use is suppressed.
+  - **Desktop** copies the picture, for apps like Paint and Word, and the file, for File Explorer. Java can't read every format as a picture (HEIC, for one), so the file is there to fall back on.
+- **"Copied":** Android 13 and later confirm a copy themselves. iOS and desktop don't, so the app says "Copied" there, and on older Android.
+- **Real file extensions.** Photos in the cache now keep the picked photo's extension, or `.jpg` from the camera, so the apps they are pasted or saved into can tell their type.
+
+## D28: Saving on each platform (2026-11-04)
+- **Android** is unchanged from the original: a copy goes into Pictures/Echo Chat through `MediaStore`, on Android 10 and later only. FileKit can save to the gallery too, but into a folder of its own name, so the original's code was kept.
+- **iOS** saves into Photos with FileKit. iOS asks once for permission to add photos, with the reason in the app's `NSPhotoLibraryAddUsageDescription`.
+- **Desktop** opens Windows' Save dialog at the Pictures folder, chosen in review over saving straight into Pictures, as desktop chat apps do. The suggested name is "Echo Chat" and the time.
+  - Cancel saves nothing.
+  - A save says nothing afterwards, because choosing the place was confirmation enough.
+  - A failure says "Couldn't save the photo", as on the phones.
+
+## D29: Testing message actions (2026-11-04)
+- **A test clipboard.** `TestClipboard` in `core:testing` stands in for the system clipboard through `LocalClipboard`, and `plainText()` reads a clip the way each platform keeps it. Compose's `Clipboard` interface brings `compose-ui` into `core:testing`, but no UI.
+- **Copying a photo is tested on each platform.** Desktop and iOS have their own `PhotoClipTest`. The iOS one uses a pasteboard of its own, so the simulator's clipboard is left alone. Android's runs on a device, through the real `FileProvider`, which Robolectric can't run on Windows, as the original found.
+- **The whole app with the real repository.** `MessageActionsTest` starts the app's real Koin modules and swaps in fakes only for the clipboard, image store and notifier. Delete and Undo go through the real store.
+- **Saving to the real Photos or Pictures** is checked by the iOS UI test and by hand.

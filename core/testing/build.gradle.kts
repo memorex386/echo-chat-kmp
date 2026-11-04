@@ -10,6 +10,8 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":core:data"))
+            // For TestClipboard: Compose's clipboard type, not its UI.
+            api(libs.compose.ui)
         }
     }
 }

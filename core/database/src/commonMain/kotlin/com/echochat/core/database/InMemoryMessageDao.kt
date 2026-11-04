@@ -37,4 +37,8 @@ class InMemoryMessageDao : MessageDao {
         }
         return id
     }
+
+    override suspend fun setDeleted(id: Long, deleted: Boolean) {
+        rows.update { messages -> messages.map { if (it.id == id) it.copy(deleted = deleted) else it } }
+    }
 }

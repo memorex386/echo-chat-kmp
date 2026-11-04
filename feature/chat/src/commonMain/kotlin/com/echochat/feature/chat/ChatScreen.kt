@@ -12,6 +12,8 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
@@ -39,6 +41,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -48,6 +52,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -71,10 +79,18 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.Clipboard
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -89,7 +105,10 @@ import com.echochat.core.designsystem.resources.ic_add
 import com.echochat.core.designsystem.resources.ic_arrow_down
 import com.echochat.core.designsystem.resources.ic_camera
 import com.echochat.core.designsystem.resources.ic_close
+import com.echochat.core.designsystem.resources.ic_copy
+import com.echochat.core.designsystem.resources.ic_delete
 import com.echochat.core.designsystem.resources.ic_photo
+import com.echochat.core.designsystem.resources.ic_save
 import com.echochat.core.designsystem.resources.ic_send
 import com.echochat.core.model.Author
 import com.echochat.core.model.Image
@@ -97,24 +116,35 @@ import com.echochat.core.model.Message
 import com.echochat.feature.chat.resources.Res
 import com.echochat.feature.chat.resources.attach
 import com.echochat.feature.chat.resources.camera
+import com.echochat.feature.chat.resources.clip_label
+import com.echochat.feature.chat.resources.copied
+import com.echochat.feature.chat.resources.copy
+import com.echochat.feature.chat.resources.delete
 import com.echochat.feature.chat.resources.echo_initial
 import com.echochat.feature.chat.resources.echo_name
 import com.echochat.feature.chat.resources.echo_typing
 import com.echochat.feature.chat.resources.empty_hint
 import com.echochat.feature.chat.resources.empty_title
 import com.echochat.feature.chat.resources.gallery
+import com.echochat.feature.chat.resources.message_actions
+import com.echochat.feature.chat.resources.message_deleted
 import com.echochat.feature.chat.resources.message_placeholder
 import com.echochat.feature.chat.resources.open_photo_from_echo
 import com.echochat.feature.chat.resources.open_photo_from_you
+import com.echochat.feature.chat.resources.photo_not_saved
+import com.echochat.feature.chat.resources.photo_saved
 import com.echochat.feature.chat.resources.remove_photo
+import com.echochat.feature.chat.resources.save
 import com.echochat.feature.chat.resources.scroll_to_latest
 import com.echochat.feature.chat.resources.send
+import com.echochat.feature.chat.resources.undo
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -139,6 +169,28 @@ fun ChatRoute(
     }
     val askToNotify = rememberNotificationPermissionRequest()
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val deleted = stringResource(Res.string.message_deleted)
+    val undo = stringResource(Res.string.undo)
+    val saved = stringResource(Res.string.photo_saved)
+    val notSaved = stringResource(Res.string.photo_not_saved)
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                // Short, not Material's default for an action (shown until tapped): the offer goes
+                // on its own. Android lengthens it for people who ask for more time to act.
+                is ChatEvent.Deleted -> {
+                    val result = snackbarHostState.showSnackbar(deleted, actionLabel = undo, duration = SnackbarDuration.Short)
+                    if (result == SnackbarResult.ActionPerformed) viewModel.undoDelete(event.message)
+                }
+                ChatEvent.PhotoSaved -> snackbarHostState.showSnackbar(saved)
+                ChatEvent.PhotoNotSaved -> snackbarHostState.showSnackbar(notSaved)
+            }
+        }
+    }
+    val copy = rememberCopy(snackbarHostState)
+    val savePhoto = rememberSavePhoto(viewModel)
+
     ChatScreen(
         uiState = uiState,
         draft = viewModel.draft,
@@ -153,10 +205,38 @@ fun ChatRoute(
         onTakePhoto = takePhoto?.let { launch -> { launch(viewModel.startCamera()) } },
         onRemoveAttachment = viewModel::removeAttachment,
         onOpenImage = onOpenImage,
+        onAction = { action ->
+            when (action) {
+                is MessageAction.CopyText -> copy { label -> copyText(action.message.text, label) }
+                is MessageAction.CopyPhoto -> action.message.image?.let { image -> copy { label -> copyPhoto(image.path, label) } }
+                is MessageAction.SavePhoto -> savePhoto?.invoke(action.message)
+                is MessageAction.Delete -> viewModel.delete(action.message)
+            }
+        },
+        canSavePhotos = savePhoto != null,
+        snackbarHostState = snackbarHostState,
     )
 }
 
-/** [onTakePhoto] is null where there is no camera, as on desktop. */
+/** Copies something to the clipboard, and says "Copied" where the system doesn't. */
+@Composable
+private fun rememberCopy(snackbarHostState: SnackbarHostState): (suspend Clipboard.(label: String) -> Unit) -> Unit {
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val label = stringResource(Res.string.clip_label)
+    val copied = stringResource(Res.string.copied)
+    return { copyTo ->
+        scope.launch {
+            clipboard.copyTo(label)
+            if (!systemConfirmsCopy) snackbarHostState.showSnackbar(copied)
+        }
+    }
+}
+
+/**
+ * [onTakePhoto] is null where there is no camera, as on desktop. [canSavePhotos] is false where
+ * a photo can't be saved, so the photo menu leaves Save out.
+ */
 @Composable
 fun ChatScreen(
     uiState: ChatUiState,
@@ -170,6 +250,9 @@ fun ChatScreen(
     onRemoveAttachment: () -> Unit,
     onOpenImage: (Message) -> Unit,
     modifier: Modifier = Modifier,
+    onAction: (MessageAction) -> Unit = {},
+    canSavePhotos: Boolean = true,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     var attachPanelOpen by rememberSaveable { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -189,13 +272,18 @@ fun ChatScreen(
                     .consumeWindowInsets(padding)
                     .imePadding(),
             ) {
-                MessageList(
-                    messages = uiState.messages,
-                    isReplying = uiState.isReplying,
-                    bubbleFraction = bubbleFraction,
-                    onOpenImage = onOpenImage,
-                    modifier = Modifier.weight(1f),
-                )
+                Box(Modifier.weight(1f)) {
+                    MessageList(
+                        messages = uiState.messages,
+                        isReplying = uiState.isReplying,
+                        bubbleFraction = bubbleFraction,
+                        onOpenImage = onOpenImage,
+                        onAction = onAction,
+                        canSavePhotos = canSavePhotos,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter))
+                }
                 Composer(
                     draft = draft,
                     attachment = attachment,
@@ -251,6 +339,8 @@ private fun MessageList(
     isReplying: Boolean,
     bubbleFraction: Float,
     onOpenImage: (Message) -> Unit,
+    onAction: (MessageAction) -> Unit,
+    canSavePhotos: Boolean,
     modifier: Modifier = Modifier,
 ) {
     // Only messages that arrive while the chat is on screen animate in, and only once.
@@ -319,6 +409,8 @@ private fun MessageList(
                     isNew = message.id > shownUpTo,
                     widthFraction = bubbleFraction,
                     onOpenImage = onOpenImage,
+                    onAction = onAction,
+                    canSavePhotos = canSavePhotos,
                     // The entrance below does the fade-in; this keeps the slide of the bubbles above.
                     modifier = Modifier.animateItem(fadeInSpec = null),
                 )
@@ -355,6 +447,8 @@ private fun MessageRow(
     isNew: Boolean,
     widthFraction: Float,
     onOpenImage: (Message) -> Unit,
+    onAction: (MessageAction) -> Unit,
+    canSavePhotos: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val mine = message.author == Author.Me
@@ -377,14 +471,22 @@ private fun MessageRow(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.weight(1f, fill = false),
             ) {
-                message.image?.let { Photo(message, it, onOpenImage) }
+                message.image?.let { image ->
+                    MessageMenu(message, forPhoto = true, canSave = canSavePhotos, onAction) { openMenu ->
+                        Photo(message, image, onOpenImage, openMenu)
+                    }
+                }
+                // A caption is text, so its bubble gets the text menu.
                 if (message.text.isNotEmpty()) {
-                    Bubble(mine = mine) {
-                        Text(
-                            text = message.text,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        )
+                    MessageMenu(message, forPhoto = false, canSave = false, onAction) { openMenu ->
+                        val actionsLabel = stringResource(Res.string.message_actions)
+                        Bubble(mine = mine, modifier = Modifier.opensMenuOnLongPress(actionsLabel, openMenu)) {
+                            Text(
+                                text = message.text,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -397,6 +499,7 @@ private fun Photo(
     message: Message,
     image: Image,
     onOpenImage: (Message) -> Unit,
+    openMenu: () -> Unit,
 ) {
     val openLabel = stringResource(
         if (message.author == Author.Me) Res.string.open_photo_from_you else Res.string.open_photo_from_echo,
@@ -409,8 +512,91 @@ private fun Photo(
             .size(PhotoWidth, PhotoHeight)
             .clip(PhotoShape)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .clickable { onOpenImage(message) },
+            .opensMenuOnRightClick(openMenu)
+            .combinedClickable(
+                onLongClickLabel = stringResource(Res.string.message_actions),
+                onLongClick = openMenu,
+                onClick = { onOpenImage(message) },
+            ),
     )
+}
+
+/** A bubble's menu, opened right at the bubble: Copy and Delete, plus Save for a photo where it can be saved. */
+@Composable
+private fun MessageMenu(
+    message: Message,
+    forPhoto: Boolean,
+    canSave: Boolean,
+    onAction: (MessageAction) -> Unit,
+    content: @Composable (openMenu: () -> Unit) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    val pick = { action: MessageAction ->
+        open = false
+        onAction(action)
+    }
+    Box {
+        content { open = true }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            if (forPhoto && canSave) {
+                MenuItem(Res.string.save, DesignRes.drawable.ic_save) { pick(MessageAction.SavePhoto(message)) }
+            }
+            MenuItem(Res.string.copy, DesignRes.drawable.ic_copy) {
+                pick(if (forPhoto) MessageAction.CopyPhoto(message) else MessageAction.CopyText(message))
+            }
+            MenuItem(Res.string.delete, DesignRes.drawable.ic_delete) { pick(MessageAction.Delete(message)) }
+        }
+    }
+}
+
+@Composable
+private fun MenuItem(
+    label: StringResource,
+    icon: DrawableResource,
+    onClick: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text(stringResource(label)) },
+        leadingIcon = { Icon(painterResource(icon), contentDescription = null) },
+        onClick = onClick,
+    )
+}
+
+/**
+ * A text bubble has nothing to do on a tap, so its menu opens on a long-press, or a right-click
+ * with a mouse. Screen readers get the menu as a named action.
+ */
+@Composable
+private fun Modifier.opensMenuOnLongPress(label: String, openMenu: () -> Unit): Modifier {
+    val haptics = LocalHapticFeedback.current
+    return opensMenuOnRightClick(openMenu)
+        .pointerInput(openMenu) {
+            detectTapGestures(
+                onLongPress = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    openMenu()
+                },
+            )
+        }
+        .semantics {
+            onLongClick(label) {
+                openMenu()
+                true
+            }
+        }
+}
+
+/** Right-click opens the menu too, as desktop users expect. */
+private fun Modifier.opensMenuOnRightClick(openMenu: () -> Unit) = pointerInput(openMenu) {
+    awaitPointerEventScope {
+        while (true) {
+            val event = awaitPointerEvent()
+            if (event.type == PointerEventType.Press && event.buttons.isSecondaryPressed) {
+                event.changes.forEach { it.consume() }
+                openMenu()
+            }
+        }
+    }
 }
 
 @Composable

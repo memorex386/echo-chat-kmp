@@ -18,6 +18,17 @@ final class ChatEndToEndUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["You said: Hello"].waitForExistence(timeout: 6))
         keepScreenshot(of: app, named: "replied")
         allowNotificationsIfAsked()
+
+        // ACTION-01 and ACTION-05: long-press, Delete, then Undo puts it back.
+        app.staticTexts["Hello"].press(forDuration: 1.0)
+        XCTAssertTrue(app.staticTexts["Delete"].waitForExistence(timeout: 3))
+        keepScreenshot(of: app, named: "text-menu")
+        app.staticTexts["Delete"].tap()
+        XCTAssertTrue(app.staticTexts["Message deleted"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["Hello"].exists)
+        keepScreenshot(of: app, named: "deleted")
+        app.buttons["Undo"].tap()
+        XCTAssertTrue(app.staticTexts["Hello"].waitForExistence(timeout: 3))
     }
 
     // Picks the newest photo in the simulator's library, which comes with sample photos.
@@ -44,6 +55,19 @@ final class ChatEndToEndUITests: XCTestCase {
         keepScreenshot(of: app, named: "photo-viewer")
         app.buttons["Back"].tap()
         XCTAssertTrue(app.staticTexts["You sent a photo"].waitForExistence(timeout: 5))
+
+        // ACTION-04: Save puts Echo's photo in Photos, after iOS asks once.
+        app.descendants(matching: .any)["Open photo from Echo"].firstMatch.press(forDuration: 1.0)
+        XCTAssertTrue(app.staticTexts["Save"].waitForExistence(timeout: 3))
+        keepScreenshot(of: app, named: "photo-menu")
+        app.staticTexts["Save"].tap()
+        let allowPhotos = springboard.alerts.buttons["Allow"]
+        if allowPhotos.waitForExistence(timeout: 5) {
+            keepScreenshot(of: springboard, named: "photos-permission")
+            allowPhotos.tap()
+        }
+        XCTAssertTrue(app.staticTexts["Saved to Photos"].waitForExistence(timeout: 5))
+        keepScreenshot(of: app, named: "photo-saved")
     }
 
     // NOTIFY-01, -04 and -05 on iOS: a reply while the app is in the background notifies, and

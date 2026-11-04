@@ -31,6 +31,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.rightClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.DpSize
@@ -43,6 +47,7 @@ import com.echochat.core.model.Author
 import com.echochat.core.model.Image
 import com.echochat.core.model.Message
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 // Runs on the desktop JVM here, and on the iOS simulator on a Mac.
@@ -63,6 +68,8 @@ class ChatScreenTest {
         onPickPhoto: () -> Unit = {},
         onTakePhoto: (() -> Unit)? = {},
         onRemoveAttachment: () -> Unit = {},
+        onAction: (MessageAction) -> Unit = {},
+        canSavePhotos: Boolean = true,
         screen: DpSize = Portrait,
     ) {
         typed = draft
@@ -80,6 +87,8 @@ class ChatScreenTest {
                         onTakePhoto = onTakePhoto,
                         onRemoveAttachment = onRemoveAttachment,
                         onOpenImage = {},
+                        onAction = onAction,
+                        canSavePhotos = canSavePhotos,
                     )
                 }
             }
@@ -355,6 +364,97 @@ class ChatScreenTest {
         photo.assert(!hasAnyAncestor(hasTestTag(BubbleTestTag)))
         caption.assert(hasAnyAncestor(hasTestTag(BubbleTestTag)))
         assertTrue(caption.getBoundsInRoot().top >= photo.getBoundsInRoot().bottom, "The caption should sit below the photo")
+    }
+
+    @Test
+    fun `ACTION-01 long-pressing a text bubble offers Copy and Delete`() = runComposeUiTest {
+        uiState = ChatUiState(messages = listOf(mine(1, "Hello")))
+        showChat()
+
+        onNodeWithText("Hello").performTouchInput { longClick() }
+
+        onNodeWithText("Copy").assertIsDisplayed()
+        onNodeWithText("Delete").assertIsDisplayed()
+        onNodeWithText("Save").assertDoesNotExist()
+    }
+
+    @Test
+    fun `ACTION-01 long-pressing a photo offers Save and Copy and Delete`() = runComposeUiTest {
+        uiState = ChatUiState(messages = listOf(Message(1, Author.Me, "", sunset)))
+        showChat()
+
+        onNodeWithContentDescription("Open photo from you").performTouchInput { longClick() }
+
+        onNodeWithText("Save").assertIsDisplayed()
+        onNodeWithText("Copy").assertIsDisplayed()
+        onNodeWithText("Delete").assertIsDisplayed()
+    }
+
+    @Test
+    fun `ACTION-01 a photo's caption gets the text menu`() = runComposeUiTest {
+        uiState = ChatUiState(messages = listOf(Message(1, Author.Me, "Sunset", sunset)))
+        showChat()
+
+        onNodeWithText("Sunset").performTouchInput { longClick() }
+
+        onNodeWithText("Copy").assertIsDisplayed()
+        onNodeWithText("Save").assertDoesNotExist()
+    }
+
+    @Test
+    fun `ACTION-01 right-clicking a bubble opens the same menu`() = runComposeUiTest {
+        uiState = ChatUiState(messages = listOf(mine(1, "Hello"), Message(2, Author.Echo, "", sunset)))
+        showChat()
+
+        onNodeWithText("Hello").performMouseInput { rightClick() }
+        onNodeWithText("Copy").assertIsDisplayed()
+        onNodeWithText("Delete").performClick()
+
+        onNodeWithContentDescription("Open photo from Echo").performMouseInput { rightClick() }
+        onNodeWithText("Save").assertIsDisplayed()
+    }
+
+    @Test
+    fun `ACTION-04 the photo menu leaves Save out where photos can't be saved`() = runComposeUiTest {
+        uiState = ChatUiState(messages = listOf(Message(1, Author.Me, "", sunset)))
+        showChat(canSavePhotos = false)
+
+        onNodeWithContentDescription("Open photo from you").performTouchInput { longClick() }
+
+        onNodeWithText("Copy").assertIsDisplayed()
+        onNodeWithText("Save").assertDoesNotExist()
+    }
+
+    @Test
+    fun `ACTION-02 choosing Copy on text hands over a text copy and closes the menu`() = runComposeUiTest {
+        val actions = mutableListOf<MessageAction>()
+        val hello = mine(1, "Hello")
+        uiState = ChatUiState(messages = listOf(hello))
+        showChat(onAction = { actions += it })
+
+        onNodeWithText("Hello").performTouchInput { longClick() }
+        onNodeWithText("Copy").performClick()
+
+        assertEquals(listOf<MessageAction>(MessageAction.CopyText(hello)), actions)
+        onNodeWithText("Copy").assertDoesNotExist()
+    }
+
+    @Test
+    fun `ACTION-03 ACTION-04 ACTION-05 each photo item hands over its own action`() = runComposeUiTest {
+        val actions = mutableListOf<MessageAction>()
+        val photo = Message(1, Author.Echo, "", sunset)
+        uiState = ChatUiState(messages = listOf(photo))
+        showChat(onAction = { actions += it })
+
+        for (item in listOf("Save", "Copy", "Delete")) {
+            onNodeWithContentDescription("Open photo from Echo").performTouchInput { longClick() }
+            onNodeWithText(item).performClick()
+        }
+
+        assertEquals(
+            listOf(MessageAction.SavePhoto(photo), MessageAction.CopyPhoto(photo), MessageAction.Delete(photo)),
+            actions,
+        )
     }
 
     private fun mine(id: Long, text: String) = Message(id, Author.Me, text)

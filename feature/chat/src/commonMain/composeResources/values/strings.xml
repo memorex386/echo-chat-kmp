@@ -19,4 +19,14 @@
     <string name="photo">Photo</string>
     <string name="back">Back</string>
     <string name="scroll_to_latest">Scroll to latest message</string>
+    <string name="message_actions">Show message actions</string>
+    <string name="copy">Copy</string>
+    <string name="save">Save</string>
+    <string name="delete">Delete</string>
+    <string name="copied">Copied</string>
+    <string name="clip_label">Message from Echo Chat</string>
+    <string name="message_deleted">Message deleted</string>
+    <string name="undo">Undo</string>
+    <string name="photo_saved">Saved to Photos</string>
+    <string name="photo_not_saved">Couldn't save the photo</string>
 </resources>

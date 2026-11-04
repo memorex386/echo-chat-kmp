@@ -33,6 +33,36 @@ class ChatRepositoryTest {
     private suspend fun ChatRepository.texts() = messages.first().map { it.text }
 
     @Test
+    fun `ACTION-05 deleting hides a message and undo puts it back in its place`() = runTest {
+        val repository = newRepository()
+        repository.send("A")
+        repository.send("B")
+        repository.send("C")
+        val b = repository.messages.first()[1]
+
+        repository.delete(b.id)
+        assertEquals(listOf("A", "C"), repository.texts())
+
+        repository.undoDelete(b.id)
+        assertEquals(listOf("A", "B", "C"), repository.texts())
+    }
+
+    @Test
+    fun `ACTION-06 deleting a message before its reply keeps Echo typing and the reply still arrives`() = runTest {
+        val repository = newRepository()
+        repository.send("Hello")
+
+        repository.delete(repository.messages.first().single().id)
+        runCurrent()
+        assertEquals(emptyList(), repository.texts())
+        assertTrue(repository.isReplying.first())
+
+        advanceUntilIdle()
+        assertEquals(listOf("You said: Hello"), repository.texts())
+        assertFalse(repository.isReplying.first())
+    }
+
+    @Test
     fun `NOTIFY-01 every reply is handed to the notifier`() = runTest {
         val notifier = RecordingNotifier()
         val repository = newRepository(notifier)

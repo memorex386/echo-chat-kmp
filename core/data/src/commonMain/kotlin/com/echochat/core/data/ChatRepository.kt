@@ -14,4 +14,10 @@ interface ChatRepository {
 
     /** Sends my message and starts waiting for the reply. [text] is trimmed; blank text needs an [image]. */
     suspend fun send(text: String, image: Image? = null)
+
+    /** Hides message [id]. A reply it is waiting for still arrives. */
+    suspend fun delete(id: Long)
+
+    /** Brings back message [id] after [delete], in the same place. */
+    suspend fun undoDelete(id: Long)
 }

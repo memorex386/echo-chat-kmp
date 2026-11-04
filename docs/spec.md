@@ -77,12 +77,21 @@ Checked by screen recording, not by tests.
 
 "Android local" tests run on the JVM with Robolectric, as `./gradlew allTests` runs them, for the parts only Android has.
 
+### Slice 5: message actions
+| ID | Criterion | Tests (module, where) | Status |
+|---|---|---|---|
+| ACTION-01 | Long-pressing a message opens a small menu at that bubble: Copy and Delete for text, and Save, Copy and Delete for a photo. A photo's caption is text, so its bubble gets the text menu. On desktop, right-clicking opens the same menu. | `ChatScreenTest` (feature:chat, common) | ✅ |
+| ACTION-02 | Copy on text puts the message's text on the clipboard. Where the system doesn't confirm a copy itself (iOS, desktop, and Android before 13), the app says "Copied". | `ChatScreenTest` (feature:chat), `MessageActionsTest` (shared), both common | ✅ |
+| ACTION-03 | Copy on a photo puts the picture on the clipboard, so it can be pasted into apps that accept images. Android shares the photo's file through a content link, as the original did. iOS and desktop copy the image itself. | `ChatScreenTest` (feature:chat, common); `PhotoClipTest` (feature:chat, desktop and iOS); `ChatEndToEndTest` (androidApp, device: the real content link) | ✅ |
+| ACTION-04 | Save on a photo keeps a copy where the platform keeps pictures. Android saves to Pictures/Echo Chat and says "Saved to Photos"; it needs Android 10 or later, and Save isn't offered before that. iOS saves to Photos, asking once for permission to add photos, and says "Saved to Photos". Desktop opens a Save dialog at the Pictures folder; cancelling saves nothing. Each says when it couldn't save. | `ChatViewModelTest`, `ChatScreenTest` (feature:chat, common); `ChatEndToEndUITests` (iOS simulator: Save to Photos); the saved file is checked by hand on Android and desktop | ✅ |
+| ACTION-05 | Delete removes the message, the whole message if it has a photo and caption, straight away, and shows "Message deleted" with Undo for about 4 seconds. Undo puts it back in the same place. Only the pressed message goes: an echo stays unless I delete it too. | `ChatRepositoryTest` (core:data), `ChatViewModelTest` (feature:chat), `MessageActionsTest` (shared), all common; `ChatEndToEndUITests` (iOS simulator) | ✅ |
+| ACTION-06 | Deleting a message before its reply arrives doesn't stop the reply. Echo keeps typing, and the reply arrives on time. | `ChatRepositoryTest` (core:data, common) | ✅ |
+
 ### Later slices
 Each is ported from the original spec when its slice starts, with any platform differences written into the criterion.
 
 | Slice | Criteria | Status |
 |---|---|---|
-| 5. Message actions: copy, save, delete with Undo | ACTION-01 to ACTION-06 | ⬜ |
 | 6. Keyboard: attach panel, rotation, landscape typing, Enter on desktop | KEY-01 to KEY-05 | ⬜ |
 
 New in this version, built with slice 6:
@@ -92,4 +101,4 @@ New in this version, built with slice 6:
 | KEY-05 | On desktop, Enter sends the message and Shift+Enter starts a new line. Found while checking slice 1: Enter only added a line, and a desktop keyboard has no Send key. | Not written yet | ⬜ |
 
 ## Screen states
-The states and the look are the original's, in [mocks/chat.html](mocks/chat.html). Slice 1 covers S-01 Empty, S-02 Typing, S-03 Echo is typing, S-04 Replied, S-05 Quick sends, S-06 Long chat and S-08 Dark. Slice 2 adds S-09 Photo attached, S-10 Photos and S-11 Photo viewer. Slice 3 adds S-07 Long text and S-13 Scrolled up when a reply arrives, and draws S-10 with each photo apart from its caption, which the mock doesn't show.
+The states and the look are the original's, in [mocks/chat.html](mocks/chat.html). Slice 1 covers S-01 Empty, S-02 Typing, S-03 Echo is typing, S-04 Replied, S-05 Quick sends, S-06 Long chat and S-08 Dark. Slice 2 adds S-09 Photo attached, S-10 Photos and S-11 Photo viewer. Slice 3 adds S-07 Long text and S-13 Scrolled up when a reply arrives, and draws S-10 with each photo apart from its caption, which the mock doesn't show. Slice 5 adds S-14 Message menu open and S-15 Just deleted, which the mock doesn't show either: see the slice's checkpoint.
