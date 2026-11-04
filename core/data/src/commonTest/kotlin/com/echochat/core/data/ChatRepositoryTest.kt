@@ -2,6 +2,7 @@ package com.echochat.core.data
 
 import com.echochat.core.database.InMemoryMessageDao
 import com.echochat.core.model.Author
+import com.echochat.core.model.Image
 import com.echochat.core.network.SimulatedChatService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -117,5 +118,18 @@ class ChatRepositoryTest {
         advanceUntilIdle()
 
         assertEquals("You said: 👋🏽", repository.texts().last())
+    }
+
+    @Test
+    fun `PHOTO-03 a photo and its caption are sent as one message`() = runTest {
+        val repository = newRepository()
+        val sunset = Image("/cache/images/sunset.jpg")
+
+        repository.send("Sunset", sunset)
+
+        val messages = repository.messages.first()
+        assertEquals(1, messages.size)
+        assertEquals("Sunset", messages.single().text)
+        assertEquals(sunset, messages.single().image)
     }
 }

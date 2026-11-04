@@ -1,5 +1,6 @@
 package com.echochat.core.network
 
+import com.echochat.core.model.Image
 import com.echochat.core.model.Message
 
 /** The other end of the conversation. A real app would call its chat server here. */
@@ -10,4 +11,5 @@ interface ChatService {
 
 data class Reply(
     val text: String,
+    val image: Image? = null,
 )

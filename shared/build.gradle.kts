@@ -20,10 +20,15 @@ kotlin {
             implementation(project(":core:data"))
             implementation(project(":core:designsystem"))
             implementation(project(":feature:chat"))
+            implementation(libs.coil.compose)
+            implementation(libs.filekit.coil)
             implementation(libs.koin.core)
             implementation(libs.lifecycle.viewmodel.navigation3)
             implementation(libs.navigation3.ui)
             implementation(libs.kotlinx.serialization.core)
+        }
+        commonTest.dependencies {
+            implementation(project(":core:testing"))
         }
     }
 }

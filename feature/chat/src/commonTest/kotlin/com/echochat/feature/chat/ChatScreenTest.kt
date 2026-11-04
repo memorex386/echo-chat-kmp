@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.DpRect
 import com.echochat.core.designsystem.component.AvatarTestTag
 import com.echochat.core.designsystem.theme.EchoChatTheme
 import com.echochat.core.model.Author
+import com.echochat.core.model.Image
 import com.echochat.core.model.Message
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -30,19 +31,30 @@ class ChatScreenTest {
 
     private var uiState by mutableStateOf(ChatUiState())
 
+    private val sunset = Image("/cache/images/sunset.jpg")
+
     private fun ComposeUiTest.showChat(
         draft: String = "",
+        attachment: Image? = null,
         canSend: Boolean = false,
         onSend: () -> Unit = {},
+        onPickPhoto: () -> Unit = {},
+        onTakePhoto: (() -> Unit)? = {},
+        onRemoveAttachment: () -> Unit = {},
     ) {
         setContent {
             EchoChatTheme {
                 ChatScreen(
                     uiState = uiState,
                     draft = draft,
+                    attachment = attachment,
                     canSend = canSend,
                     onDraftChange = {},
                     onSend = onSend,
+                    onPickPhoto = onPickPhoto,
+                    onTakePhoto = onTakePhoto,
+                    onRemoveAttachment = onRemoveAttachment,
+                    onOpenImage = {},
                 )
             }
         }
@@ -118,6 +130,49 @@ class ChatScreenTest {
         onNodeWithText("Echo").assertIsDisplayed()
         // One in the top bar, one beside each of the two replies and one beside the typing dots.
         onAllNodesWithTag(AvatarTestTag, useUnmergedTree = true).assertCountEquals(4)
+    }
+
+    @Test
+    fun `PHOTO-01 the attach button offers the gallery and the camera`() = runComposeUiTest {
+        var picked = false
+        var took = false
+        showChat(onPickPhoto = { picked = true }, onTakePhoto = { took = true })
+
+        onNodeWithContentDescription("Attach").performClick()
+        onNodeWithText("Gallery").performClick()
+        onNodeWithContentDescription("Attach").performClick()
+        onNodeWithText("Camera").performClick()
+
+        assertTrue(picked, "Gallery should open the photo picker")
+        assertTrue(took, "Camera should open the camera")
+    }
+
+    @Test
+    fun `PHOTO-01 without a camera only the gallery is offered`() = runComposeUiTest {
+        showChat(onTakePhoto = null)
+
+        onNodeWithContentDescription("Attach").performClick()
+
+        onNodeWithText("Gallery").assertIsDisplayed()
+        onNodeWithText("Camera").assertDoesNotExist()
+    }
+
+    @Test
+    fun `PHOTO-01 an attached photo shows above the input with a remove button`() = runComposeUiTest {
+        showChat(attachment = sunset, canSend = true)
+
+        onNodeWithContentDescription("Remove photo").assertIsDisplayed()
+        onNodeWithContentDescription("Send").assertIsEnabled()
+    }
+
+    @Test
+    fun `PHOTO-02 pressing remove drops the photo`() = runComposeUiTest {
+        var removed = false
+        showChat(attachment = sunset, canSend = true, onRemoveAttachment = { removed = true })
+
+        onNodeWithContentDescription("Remove photo").performClick()
+
+        assertTrue(removed)
     }
 
     private fun mine(id: Long, text: String) = Message(id, Author.Me, text)

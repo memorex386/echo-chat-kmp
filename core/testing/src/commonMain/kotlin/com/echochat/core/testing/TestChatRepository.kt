@@ -1,6 +1,7 @@
 package com.echochat.core.testing
 
 import com.echochat.core.data.ChatRepository
+import com.echochat.core.model.Image
 import com.echochat.core.model.Message
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -9,9 +10,11 @@ class TestChatRepository : ChatRepository {
     override val messages = MutableStateFlow(emptyList<Message>())
     override val isReplying = MutableStateFlow(false)
 
-    val sent = mutableListOf<String>()
+    val sent = mutableListOf<Sent>()
 
-    override suspend fun send(text: String) {
-        sent += text
+    override suspend fun send(text: String, image: Image?) {
+        sent += Sent(text, image)
     }
+
+    data class Sent(val text: String, val image: Image? = null)
 }

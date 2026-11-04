@@ -19,9 +19,9 @@ The original's modules, each now multiplatform, plus one shared app module and a
 | `desktopApp` | `main()` and the window. JVM only. |
 | `iosApp` | The Xcode project, its Swift entry point and the iOS end-to-end test. Built on the Mac (D12). |
 | `shared` | `EchoChatApp()`: the theme, the Navigation 3 back stack and the Koin start-up. iOS gets it as one framework, `Shared`. |
-| `feature:chat` | Chat screen, `ChatViewModel` |
-| `core:model` | `Message`, `Author`. No dependencies. |
-| `core:data` | `ChatRepository`, the only place messages change |
+| `feature:chat` | Chat screen, photo viewer, `ChatViewModel` |
+| `core:model` | `Message`, `Author`, `Image`. No dependencies. |
+| `core:data` | `ChatRepository`, the only place messages change, and `ImageStore` |
 | `core:database` | `MessageDao` and its in-memory implementation |
 | `core:network` | `ChatService` and the simulated echo service |
 | `core:designsystem` | Theme, avatar, typing dots, icons |
@@ -57,6 +57,8 @@ Kotlin/Native rejects some characters in function names that the JVM allows. The
 | `hiltViewModel()` | `koinViewModel()` |
 | Navigation 3 finding keys by reflection | Each feature lists its keys in a `SerializersModule`, because iOS has no reflection |
 | Robolectric UI tests | `runComposeUiTest` on the desktop JVM, plus device tests for Android-only behaviour |
+| Android's photo picker and camera contracts, and a `FileProvider` | FileKit (D13) |
+| Coil on Android | Coil 3, which is multiplatform, with FileKit's Coil support (D13) |
 
 ## D9: Toolchain (2026-11-03)
 Each version was the latest stable release on Maven Central or Google Maven on the day the project was set up: Kotlin 2.4.21, Compose Multiplatform 1.12.2, Navigation 3 1.2.0, Lifecycle 2.11.0, Koin 4.2.2, AGP 9.5.0 and Gradle 9.8.2. One exception:
@@ -81,3 +83,26 @@ Chosen in review of slice 1. On desktop, Enter added a new line, because the inp
 - **Checked without hands.** The Mac is reached over SSH from my Windows PC, where nothing can tap the simulator. So the iOS app has its own end-to-end test, `ChatEndToEndUITests`, the counterpart of Android's device test. It finds Compose's controls through iOS accessibility: the 4-line input shows up as a text view labelled "Message". The keyboard's return key is labelled Send as well, and the test sends with it.
 - **Its own simulator.** The test runs on "Echo Chat iPhone 18 Pro", so it never touches the simulators other projects on the Mac use.
 - **iOS 17 and later.** Xcode warns that two of Compose's ICU data files were built for iOS 18.5. They hold text-processing data, not code, and the rest of the framework targets iOS 14 and 15, so the warning is accepted.
+
+## D13: FileKit for the pickers, Coil for showing photos (2026-11-04)
+Chosen in review, over writing each platform's picker ourselves.
+- **FileKit 0.17.0** picks a photo with each platform's own picker: Android's photo picker, iOS's photo picker and a native file dialog for images on desktop. None needs a permission. Its camera opens the phone's own camera app on Android and iOS. It also gives common code one file type, `PlatformFile`, and the app's cache folder on every platform.
+- **Coil 3.6.3**, as in the original, now multiplatform. It loads photos as `PlatformFile`s through FileKit's Coil support, so one kind of path works everywhere, Windows paths included.
+- Both are built for Kotlin 2.4.21 and Compose Multiplatform 1.12.2, the versions this project uses.
+
+## D14: Where photos are kept (2026-11-04)
+As in the original, a picked photo is copied into the app's cache, under `images`, so it stays readable after the picker's access ends. The camera saves straight into a new file there, so its photo needs no copy; it is attached only if the camera saved it.
+- **Android:** the app's private cache, which Android sandboxes and encrypts. The copy is `-rw-------`.
+- **iOS:** the app's sandboxed Caches folder.
+- **Desktop:** `%LOCALAPPDATA%\EchoChat\Cache\images` on Windows. Desktop has no app sandbox, so other programs the user runs can read it. `desktopApp` names the folder with `FileKit.init(appId = "EchoChat")`.
+
+## D15: The camera lives in a mobile-only source set (2026-11-04)
+Desktop has no camera app to hand off to, so it offers only the gallery. `rememberTakePhoto()` is declared once in `commonMain` and implemented twice: in `mobileMain`, a source set shared by Android and iOS only, and in `jvmMain`, where it is null. `ChatScreen` hides the Camera tile when it is null.
+- `mobileMain` is made with Kotlin's hierarchy template, which is marked experimental.
+- Its `withAndroidTarget()` doesn't match AGP 9's Android library target, so Android is picked out by platform type instead. The first build caught it: Android had no `actual`.
+
+## D16: Platform hosts in tests (2026-11-04)
+The whole-app test for PHOTO-05 failed on the iOS simulator only: FileKit's picker needs the UIKit view controller that hosts Compose, which a bare test doesn't have. `AppTestHost` is declared in `commonTest` and implemented per platform: on iOS it provides a plain view controller, and on the JVM it adds nothing. Tests of a single screen don't need it, because the screen takes its pickers as callbacks.
+
+## D17: Light status-bar icons over the photo viewer (2026-11-04)
+The viewer is black, so its status-bar icons should be light. `LightStatusBarIcons()` does this on Android, as in the original. Desktop has no status bar. On the iOS 27 simulator the system turned the icons light by itself; earlier iOS versions aren't checked.

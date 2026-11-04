@@ -8,7 +8,8 @@ The brief asked for two things: send a text message that appears on the right, a
 | Slice | Android | Desktop | iOS |
 |---|---|---|---|
 | 1. Text chat: send, typing dots, echo after 5 s | ✅ | ✅ | ✅ |
-| 2 to 6. Photos, polish, notifications, message actions, keyboard | ⬜ | ⬜ | ⬜ |
+| 2. Photos: gallery and camera, photo echo, full-screen viewer | ✅ | ✅ Gallery only: no camera | ✅ Camera not checked: the simulator has none |
+| 3 to 6. Polish, notifications, message actions, keyboard | ⬜ | ⬜ | ⬜ |
 
 The criteria and their status are in [docs/spec.md](docs/spec.md), and the choices behind the build are in [docs/decisions.md](docs/decisions.md).
 
@@ -23,10 +24,10 @@ Built with JDK 21, Android SDK 37, Xcode 27, Kotlin 2.4.21 and Compose Multiplat
 
 ## Ambiguities
 Carried over from the original:
-- **What the reply says.** Echo repeats the message: "You said: Hello".
+- **What the reply says.** Echo repeats the message: "You said: Hello". A photo comes back with its caption, or with "You sent a photo".
 - **Messages sent close together.** Each message gets its own reply, 5 seconds after that message. You can keep sending while replies are on their way.
 - **"Beneath the previous message".** Replies are added to the bottom in the order they arrive. If I send two messages quickly, both come before both replies.
-- **Empty messages.** Send stays disabled until there is text, and spaces around a message are dropped.
+- **Empty messages.** Send stays disabled until there is text or a photo, and spaces around a message are dropped.
 - **Persistence.** In memory, as the brief allows, so messages are gone when the app ends.
 
 New in this version:

@@ -7,4 +7,15 @@
     <string name="empty_hint">Send a message and Echo replies 5 seconds later.</string>
     <string name="message_placeholder">Message</string>
     <string name="send">Send</string>
+    <string name="attach">Attach</string>
+    <string name="gallery">Gallery</string>
+    <string name="camera">Camera</string>
+    <string name="remove_photo">Remove photo</string>
+    <string name="open_photo_from_you">Open photo from you</string>
+    <string name="open_photo_from_echo">Open photo from Echo</string>
+    <string name="photo_from_you">Photo from you</string>
+    <string name="photo_from_echo">Photo from Echo</string>
+    <string name="you">You</string>
+    <string name="photo">Photo</string>
+    <string name="back">Back</string>
 </resources>

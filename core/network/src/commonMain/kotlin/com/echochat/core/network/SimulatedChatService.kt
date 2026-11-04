@@ -12,8 +12,11 @@ class SimulatedChatService : ChatService {
 
     override suspend fun send(message: Message): Reply {
         delay(ReplyDelay)
-        return Reply(text = "You said: ${message.text}")
+        return Reply(text = echoOf(message), image = message.image)
     }
+
+    private fun echoOf(message: Message) =
+        if (message.text.isNotEmpty()) "You said: ${message.text}" else "You sent a photo"
 
     companion object {
         val ReplyDelay = 5.seconds

@@ -4,6 +4,7 @@ import com.echochat.core.database.MessageDao
 import com.echochat.core.database.MessageEntity
 import com.echochat.core.database.asMessage
 import com.echochat.core.model.Author
+import com.echochat.core.model.Image
 import com.echochat.core.model.Message
 import com.echochat.core.network.ChatService
 import kotlinx.coroutines.CoroutineScope
@@ -24,17 +25,22 @@ class DefaultChatRepository(
     override val isReplying: Flow<Boolean> =
         messageDao.observeAll().map { rows -> rows.any(MessageEntity::awaitingReply) }.distinctUntilChanged()
 
-    override suspend fun send(text: String) {
-        val sent = MessageEntity(author = Author.Me, text = text.trim(), awaitingReply = true)
-        require(sent.text.isNotEmpty()) { "A message needs text" }
+    override suspend fun send(text: String, image: Image?) {
+        val sent = MessageEntity(
+            author = Author.Me,
+            text = text.trim(),
+            imagePath = image?.path,
+            awaitingReply = true,
+        )
+        require(sent.text.isNotEmpty() || image != null) { "A message needs text or an image" }
         val id = messageDao.insert(sent)
 
         // The reply belongs to the app, not to the screen that sent the message, so it still
-        // arrives after a rotation or a trip to another screen.
+        // arrives after a rotation or a trip to the photo viewer.
         appScope.launch {
             val reply = chatService.send(sent.copy(id = id).asMessage())
             messageDao.insertReply(
-                reply = MessageEntity(author = Author.Echo, text = reply.text),
+                reply = MessageEntity(author = Author.Echo, text = reply.text, imagePath = reply.image?.path),
                 repliedToId = id,
             )
         }

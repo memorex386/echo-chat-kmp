@@ -23,6 +23,31 @@ final class ChatEndToEndUITests: XCTestCase {
         keepScreenshot(of: app, named: "replied")
     }
 
+    // Picks the newest photo in the simulator's library, which comes with sample photos.
+    func testAPhotoFromTheGalleryIsSentEchoedAndOpenedFullScreen() {
+        let app = XCUIApplication()
+        app.launch()
+
+        XCTAssertTrue(app.buttons["Attach"].waitForExistence(timeout: 10))
+        app.buttons["Attach"].tap()
+        app.staticTexts["Gallery"].tap()
+        let newestPhoto = app.images.matching(NSPredicate(format: "label BEGINSWITH 'Photo, '")).firstMatch
+        XCTAssertTrue(newestPhoto.waitForExistence(timeout: 20))
+        newestPhoto.tap()
+
+        XCTAssertTrue(app.buttons["Remove photo"].waitForExistence(timeout: 10))
+        keepScreenshot(of: app, named: "photo-attached")
+        app.buttons["Send"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["You sent a photo"].waitForExistence(timeout: 8))
+        keepScreenshot(of: app, named: "photo-echo")
+
+        app.descendants(matching: .any)["Open photo from Echo"].firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["Photo from Echo"].waitForExistence(timeout: 5))
+        keepScreenshot(of: app, named: "photo-viewer")
+        app.buttons["Back"].tap()
+        XCTAssertTrue(app.staticTexts["You sent a photo"].waitForExistence(timeout: 5))
+    }
+
     // Kept in the test results, for the checkpoint write-up.
     private func keepScreenshot(of app: XCUIApplication, named name: String) {
         let screenshot = XCTAttachment(screenshot: app.screenshot())

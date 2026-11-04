@@ -11,6 +11,8 @@ activityCompose = "1.13.0"
 lifecycle = "2.11.0"
 navigation3 = "1.2.0"
 koin = "4.2.2"
+coil = "3.6.3"
+filekit = "0.17.0"
 coroutines = "1.11.0"
 serialization = "1.12.0"
 androidxTestRunner = "1.7.0"
@@ -29,6 +31,10 @@ lifecycle-viewmodel-navigation3 = { group = "org.jetbrains.androidx.lifecycle", 
 # Google publishes the Navigation 3 runtime for every platform; JetBrains publishes the UI for the non-Android ones.
 navigation3-runtime = { group = "androidx.navigation3", name = "navigation3-runtime", version.ref = "navigation3" }
 navigation3-ui = { group = "org.jetbrains.androidx.navigation3", name = "navigation3-ui", version.ref = "navigation3" }
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+filekit-coil = { group = "io.github.vinceglb", name = "filekit-coil", version.ref = "filekit" }
+filekit-core = { group = "io.github.vinceglb", name = "filekit-core", version.ref = "filekit" }
+filekit-dialogs-compose = { group = "io.github.vinceglb", name = "filekit-dialogs-compose", version.ref = "filekit" }
 koin-core = { group = "io.insert-koin", name = "koin-core", version.ref = "koin" }
 koin-compose-viewmodel = { group = "io.insert-koin", name = "koin-compose-viewmodel", version.ref = "koin" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
