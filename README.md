@@ -10,7 +10,8 @@ The brief asked for two things: send a text message that appears on the right, a
 | 1. Text chat: send, typing dots, echo after 5 s | ✅ | ✅ | ✅ |
 | 2. Photos: gallery and camera, photo echo, full-screen viewer | ✅ | ✅ Gallery only: no camera | ✅ Camera not checked: the simulator has none |
 | 3. Polish: jump arrow, unsent work kept, landscape width, long text, photo captions, motion | ✅ | ✅ | ✅ Shared tests only |
-| 4 to 6. Notifications, message actions, keyboard | ⬜ | ⬜ | ⬜ |
+| 4. Notifications: a reply while away notifies, tapping it opens the chat | ✅ | ✅ Minimized not checked by hand | ✅ |
+| 5 and 6. Message actions, keyboard | ⬜ | ⬜ | ⬜ |
 
 The criteria and their status are in [docs/spec.md](docs/spec.md), and the choices behind the build are in [docs/decisions.md](docs/decisions.md).
 

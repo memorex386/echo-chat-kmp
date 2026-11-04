@@ -25,6 +25,7 @@ The original's modules, each now multiplatform, plus one shared app module and a
 | `core:database` | `MessageDao` and its in-memory implementation |
 | `core:network` | `ChatService` and the simulated echo service |
 | `core:designsystem` | Theme, avatar, typing dots, icons |
+| `core:notifications` | `Notifier`, the shared rules, and each platform's notifications. Added in slice 4 (D22). |
 | `core:testing` | Fakes shared by the modules' tests |
 
 Convention plugins in `build-logic` hold the shared setup: `echochat.kmp.library`, `echochat.kmp.compose`, `echochat.kmp.feature`, and one each for the Android and desktop apps.
@@ -128,3 +129,32 @@ Compose's `StateRestorationTester` is in common code, but its save step is a stu
 Two other test details turned up:
 - **`assertIsNotDisplayed()` needs the node to exist.** On desktop a list doesn't create items that are off screen, so "the reply isn't shown" is checked by the top of the list still being shown.
 - **`getBoundsInRoot()` is clipped to what is visible.** To check where a tall message really ends, the test uses `getUnclippedBoundsInRoot()`. With the clipped bounds, a test that should have failed passed.
+
+## D22: Shared rules for notifications, thin platform code (2026-11-04)
+Chosen in review. As in the original, `ChatRepository` hands every reply to a `Notifier`, which decides whether to show it. The deciding is now common code; only the posting is per platform.
+- **`ChatNotifier`** (common) knows whether the chat is on screen and keeps the replies that came while it wasn't. It shows them all, oldest first, and forgets them when the chat is shown again. `ChatNotifierTest` checks these rules once, on every platform.
+- **`NotificationTray`** is the per-platform part. It only shows the unread replies or clears them:
+  - **Android:** the original's notification, unchanged: one MessagingStyle conversation from Echo, on a high-importance channel, replaced as replies arrive.
+  - **iOS:** one notification per reply. They share a thread, so iOS stacks them as one Echo group, newest on top, as Messages does.
+  - **Desktop:** a Windows notification from an icon in the system tray (D24).
+- **`core:notifications`** is a new core module, as in the original. `core:data` uses `Notifier` to hand over replies and `feature:chat` uses it to say when the chat is on screen. `ChatNotifier` guards its list with a lock from atomicfu, because replies arrive on a background thread while the screen reports from the main one.
+
+## D23: What "on screen" means on each platform (2026-11-04)
+The chat screen tells the notifier with `LifecycleResumeEffect`: shown when its lifecycle reaches resumed, hidden when it drops below. Each platform maps this its own way:
+- **Android:** the activity is in front.
+- **iOS:** the app is active. Going Home, or pulling down Notification Centre, drops it below resumed.
+- **Desktop:** the window is focused. An unfocused window is started, and a minimized one is created, so both count as away. Chosen in review over notifying only when minimized, because a chat behind another window isn't being read either.
+
+The photo viewer counts as away on every platform: it takes the chat's place on screen, so the chat reports itself hidden. `ChatNavigationTest` checks that.
+
+## D24: Platform differences in notifications (2026-11-04)
+- **Asking first.** Android 13 and later and iOS ask on the first send, as the original did. Android uses its permission launcher, iOS asks the notification centre. Desktop needs no permission. A refusal is left alone.
+- **Opening the chat.** `ChatRequests` is a shared signal that `EchoChatApp` listens to: it closes anything above the chat. Android's notification opens `MainActivity` with an `OPEN_CHAT` intent, which it turns into a request in `onNewIntent`. On iOS the notification centre's delegate makes the request. On desktop the tray icon's click does, and the window is also brought forward.
+- **iOS over the photo viewer.** iOS hides notifications while their app is active, so the delegate asks for a banner anyway. It runs only when the notifier has already decided the chat isn't on screen.
+- **Desktop can't take a notification back.** Java can only show one from a system-tray icon, and has no call to remove it, so `clear()` does nothing there and Windows lists each reply under the app. The icon appears with the first notification rather than at start-up, so it isn't there until it is needed. Run from Gradle, Windows names the sender after the Java runtime, "OpenJDK Platform binary"; a packaged app would carry its own name.
+
+## D25: Notifications in tests (2026-11-04)
+- **Android local tests, in one module.** Posting a notification can only be checked against Android's own notification manager, so `core:notifications` turns on Android local tests and runs `AndroidNotificationTrayTest` with Robolectric, as the original did. It has no Compose UI tests, which Android local tests can't run (D6). Robolectric's Android 16 runtime needs one JDK package opened to it.
+- **Device and simulator tests allow notifications.** Android's end-to-end test grants the permission before it starts, so the first send doesn't stop for the prompt. The iOS test taps Allow when iOS asks, and a new iOS test sends, goes Home, sees the banner, taps it and lands back in the chat.
+- **The notification centre needs an app.** `UNUserNotificationCenter` fails in the shared tests on the iOS simulator, which run without an app bundle. So the iOS tray looks it up only when it first posts, and the iOS app installs the delegate as it starts, rather than Koin.
+- **Swift doesn't see Kotlin's default arguments.** `initKoin` now takes the platform's own set-up, such as Android's context, so Swift calls a separate `initKoin()` with none.

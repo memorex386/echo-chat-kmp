@@ -23,6 +23,7 @@ kotlin {
             implementation(libs.coil.compose)
             implementation(libs.filekit.coil)
             implementation(libs.koin.core)
+            implementation(libs.koin.compose)
             implementation(libs.lifecycle.viewmodel.navigation3)
             implementation(libs.navigation3.ui)
             implementation(libs.kotlinx.serialization.core)

@@ -8,6 +8,7 @@ import com.echochat.core.data.CameraShot
 import com.echochat.core.data.ChatRepository
 import com.echochat.core.data.ImageStore
 import com.echochat.core.model.Image
+import com.echochat.core.notifications.Notifier
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.absolutePath
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,6 +21,7 @@ class ChatViewModel(
     private val savedState: SavedStateHandle,
     private val chatRepository: ChatRepository,
     private val imageStore: ImageStore,
+    private val notifier: Notifier,
 ) : ViewModel() {
 
     val uiState: StateFlow<ChatUiState> =
@@ -61,6 +63,10 @@ class ChatViewModel(
     fun onDraftChange(text: String) {
         draft = text
     }
+
+    fun onChatShown() = notifier.onChatShown()
+
+    fun onChatHidden() = notifier.onChatHidden()
 
     fun onPhotoPicked(photo: PlatformFile) {
         viewModelScope.launch { attachment = imageStore.import(photo) }

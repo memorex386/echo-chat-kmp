@@ -11,12 +11,20 @@ fun main() {
     FileKit.init(appId = "EchoChat")
     initKoin()
     application {
+        val windowState = rememberWindowState(width = 420.dp, height = 760.dp)
         Window(
             onCloseRequest = ::exitApplication,
             title = "Echo Chat",
-            state = rememberWindowState(width = 420.dp, height = 760.dp),
+            state = windowState,
         ) {
-            EchoChatApp()
+            // Clicking one of Echo's notifications brings the chat window forward.
+            EchoChatApp(
+                onChatRequested = {
+                    windowState.isMinimized = false
+                    window.toFront()
+                    window.requestFocus()
+                },
+            )
         }
     }
 }

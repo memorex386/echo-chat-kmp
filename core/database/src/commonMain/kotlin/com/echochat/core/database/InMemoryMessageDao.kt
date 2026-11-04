@@ -30,10 +30,11 @@ class InMemoryMessageDao : MessageDao {
         return id
     }
 
-    override suspend fun insertReply(reply: MessageEntity, repliedToId: Long) {
+    override suspend fun insertReply(reply: MessageEntity, repliedToId: Long): Long {
         val id = lastId.incrementAndFetch()
         rows.update { messages ->
             messages.map { if (it.id == repliedToId) it.copy(awaitingReply = false) else it } + reply.copy(id = id)
         }
+        return id
     }
 }

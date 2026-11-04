@@ -13,6 +13,7 @@ kotlin {
             api(libs.koin.core)
             api(libs.kotlinx.coroutines.core)
             api(libs.filekit.core)
+            api(project(":core:notifications"))
             implementation(project(":core:database"))
             implementation(project(":core:network"))
         }

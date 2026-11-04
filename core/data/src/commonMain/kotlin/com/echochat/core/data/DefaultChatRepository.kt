@@ -7,6 +7,7 @@ import com.echochat.core.model.Author
 import com.echochat.core.model.Image
 import com.echochat.core.model.Message
 import com.echochat.core.network.ChatService
+import com.echochat.core.notifications.Notifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 class DefaultChatRepository(
     private val messageDao: MessageDao,
     private val chatService: ChatService,
+    private val notifier: Notifier,
     private val appScope: CoroutineScope,
 ) : ChatRepository {
 
@@ -39,10 +41,10 @@ class DefaultChatRepository(
         // arrives after a rotation or a trip to the photo viewer.
         appScope.launch {
             val reply = chatService.send(sent.copy(id = id).asMessage())
-            messageDao.insertReply(
-                reply = MessageEntity(author = Author.Echo, text = reply.text, imagePath = reply.image?.path),
-                repliedToId = id,
-            )
+            val stored = MessageEntity(author = Author.Echo, text = reply.text, imagePath = reply.image?.path)
+            val replyId = messageDao.insertReply(stored, repliedToId = id)
+            // The notifier decides whether to show it: not while the chat is on screen.
+            notifier.notifyReply(stored.copy(id = replyId).asMessage())
         }
     }
 }

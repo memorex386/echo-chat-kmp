@@ -28,6 +28,10 @@ kotlin {
             implementation(libs.coil.compose)
             implementation(libs.filekit.dialogs.compose)
         }
+        androidMain.dependencies {
+            implementation(libs.androidx.activity.compose)
+            implementation(libs.androidx.core.ktx)
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 package com.echochat
 
+import android.Manifest.permission.POST_NOTIFICATIONS
 import android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE as LANDSCAPE
 import android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT as PORTRAIT
 import android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED as UNSPECIFIED
@@ -16,6 +17,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.rule.GrantPermissionRule
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,7 +27,11 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ChatEndToEndTest {
 
-    @get:Rule
+    // Granted up front, so the first send doesn't stop to ask (NOTIFY-05).
+    @get:Rule(order = 0)
+    val notifications: GrantPermissionRule = GrantPermissionRule.grant(POST_NOTIFICATIONS)
+
+    @get:Rule(order = 1)
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test

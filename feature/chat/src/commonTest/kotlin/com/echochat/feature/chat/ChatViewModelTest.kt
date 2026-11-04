@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.echochat.core.testing.TestChatRepository
 import com.echochat.core.testing.TestChatRepository.Sent
 import com.echochat.core.testing.TestImageStore
+import com.echochat.core.testing.TestNotifier
 import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -38,7 +39,8 @@ class ChatViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun newViewModel(savedState: SavedStateHandle) = ChatViewModel(savedState, chatRepository, TestImageStore())
+    private fun newViewModel(savedState: SavedStateHandle) =
+        ChatViewModel(savedState, chatRepository, TestImageStore(), TestNotifier())
 
     /** What a new ViewModel gets after Android ends the app: only the values the old one saved. */
     private fun afterAndroidEndsTheApp() =

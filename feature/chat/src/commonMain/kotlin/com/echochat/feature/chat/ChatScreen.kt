@@ -80,6 +80,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.echochat.core.designsystem.component.Avatar
@@ -130,6 +131,13 @@ fun ChatRoute(
         photo?.let(viewModel::onPhotoPicked)
     }
     val takePhoto = rememberTakePhoto(viewModel::onCameraResult)
+    // Resumed means the chat is on screen. Paused or gone means it isn't: the photo viewer is
+    // open, the app is in the background, or a desktop window has lost focus.
+    LifecycleResumeEffect(viewModel) {
+        viewModel.onChatShown()
+        onPauseOrDispose { viewModel.onChatHidden() }
+    }
+    val askToNotify = rememberNotificationPermissionRequest()
 
     ChatScreen(
         uiState = uiState,
@@ -137,7 +145,10 @@ fun ChatRoute(
         attachment = viewModel.attachment,
         canSend = viewModel.canSend,
         onDraftChange = viewModel::onDraftChange,
-        onSend = viewModel::send,
+        onSend = {
+            viewModel.send()
+            askToNotify()
+        },
         onPickPhoto = pickPhoto::launch,
         onTakePhoto = takePhoto?.let { launch -> { launch(viewModel.startCamera()) } },
         onRemoveAttachment = viewModel::removeAttachment,

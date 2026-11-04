@@ -66,12 +66,22 @@ Checked by screen recording, not by tests.
 - The list scrolls smoothly to new messages. The down-arrow fades and scales in and out.
 - All of it follows the system's animation setting, so "Remove animations" on Android turns it off.
 
+### Slice 4: notifications
+| ID | Criterion | Tests (module, where) | Status |
+|---|---|---|---|
+| NOTIFY-01 | When a reply arrives while the chat isn't on screen, a notification from Echo shows the reply. Not on screen means the app is in the background, the photo viewer is open, or, on desktop, the chat window isn't focused. | `ChatRepositoryTest` (core:data), `ChatNotifierTest` (core:notifications), both common; `AndroidNotificationTrayTest` (core:notifications, Android local); `ChatEndToEndUITests` (iOS simulator) | ✅ |
+| NOTIFY-02 | While the chat is on screen, replies don't notify, and showing the chat clears any notification from Echo. Desktop can't take a notification back once Windows has shown it. | `ChatNotifierTest` (core:notifications), `ChatNavigationTest` (shared), both common; `AndroidNotificationTrayTest` (Android local) | ✅ |
+| NOTIFY-03 | Replies that arrive while I'm away stay together, in the platform's own way. Android stacks them in one conversation notification, oldest first. iOS groups them in one Echo stack, newest on top, as Messages does. Windows lists each one under the app. | `ChatNotifierTest` (core:notifications, common); `AndroidNotificationTrayTest` (Android local) | ✅ |
+| NOTIFY-04 | Tapping the notification opens the chat, even if the photo viewer was open. On desktop, clicking it brings the chat window to the front. | `ChatNavigationTest` (shared, common); `AndroidNotificationTrayTest` (Android local); `ChatEndToEndUITests` (iOS simulator) | ✅ |
+| NOTIFY-05 | On Android 13 and later and on iOS, the app asks for permission to notify the first time I send a message. If I refuse, the chat works the same and nothing is posted. Desktop needs no permission. | `AndroidNotificationTrayTest` (Android local); `ChatEndToEndUITests` (iOS simulator) allows it; refusing was checked by hand on the emulator | ✅ |
+
+"Android local" tests run on the JVM with Robolectric, as `./gradlew allTests` runs them, for the parts only Android has.
+
 ### Later slices
 Each is ported from the original spec when its slice starts, with any platform differences written into the criterion.
 
 | Slice | Criteria | Status |
 |---|---|---|
-| 4. Notifications | NOTIFY-01 to NOTIFY-05 | ⬜ |
 | 5. Message actions: copy, save, delete with Undo | ACTION-01 to ACTION-06 | ⬜ |
 | 6. Keyboard: attach panel, rotation, landscape typing, Enter on desktop | KEY-01 to KEY-05 | ⬜ |
 

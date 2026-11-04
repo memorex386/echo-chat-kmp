@@ -10,6 +10,6 @@ interface MessageDao {
     /** Stores [message] and returns its new id. */
     suspend fun insert(message: MessageEntity): Long
 
-    /** Stores [reply] and marks message [repliedToId] as answered, in one step. */
-    suspend fun insertReply(reply: MessageEntity, repliedToId: Long)
+    /** Stores [reply] and marks message [repliedToId] as answered, in one step. Returns the reply's id. */
+    suspend fun insertReply(reply: MessageEntity, repliedToId: Long): Long
 }

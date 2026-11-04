@@ -3,7 +3,9 @@ package com.echochat.core.data
 import com.echochat.core.database.InMemoryMessageDao
 import com.echochat.core.model.Author
 import com.echochat.core.model.Image
+import com.echochat.core.model.Message
 import com.echochat.core.network.SimulatedChatService
+import com.echochat.core.notifications.Notifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -25,10 +27,35 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatRepositoryTest {
 
-    private fun TestScope.newRepository() =
-        DefaultChatRepository(InMemoryMessageDao(), SimulatedChatService(), appScope = this)
+    private fun TestScope.newRepository(notifier: Notifier = RecordingNotifier()) =
+        DefaultChatRepository(InMemoryMessageDao(), SimulatedChatService(), notifier, appScope = this)
 
     private suspend fun ChatRepository.texts() = messages.first().map { it.text }
+
+    @Test
+    fun `NOTIFY-01 every reply is handed to the notifier`() = runTest {
+        val notifier = RecordingNotifier()
+        val repository = newRepository(notifier)
+
+        repository.send("Hello")
+        advanceUntilIdle()
+
+        assertEquals(listOf("You said: Hello"), notifier.replies.map { it.text })
+        assertEquals(Author.Echo, notifier.replies.single().author)
+    }
+
+    // core:testing can't be used here, because it depends on this module.
+    private class RecordingNotifier : Notifier {
+        val replies = mutableListOf<Message>()
+
+        override fun notifyReply(reply: Message) {
+            replies += reply
+        }
+
+        override fun onChatShown() = Unit
+
+        override fun onChatHidden() = Unit
+    }
 
     @Test
     fun `CHAT-01 a sent message becomes the last message and it is mine`() = runTest {

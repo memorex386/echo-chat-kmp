@@ -11,8 +11,11 @@ import com.echochat.core.data.ImageStore
 import com.echochat.core.model.Author
 import com.echochat.core.model.Image
 import com.echochat.core.model.Message
+import com.echochat.core.notifications.ChatRequests
+import com.echochat.core.notifications.Notifier
 import com.echochat.core.testing.TestChatRepository
 import com.echochat.core.testing.TestImageStore
+import com.echochat.core.testing.TestNotifier
 import com.echochat.feature.chat.di.chatModule
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,12 +28,16 @@ import org.koin.dsl.module
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 // The whole app, with fakes behind the chat screen's ViewModel.
 @OptIn(ExperimentalTestApi::class, ExperimentalCoroutinesApi::class)
 class ChatNavigationTest {
 
     private val chatRepository = TestChatRepository()
+    private val notifier = TestNotifier()
+    private val chatRequests = ChatRequests()
 
     @BeforeTest
     fun setUp() {
@@ -42,10 +49,13 @@ class ChatNavigationTest {
                 module {
                     single<ChatRepository> { chatRepository }
                     single<ImageStore> { TestImageStore() }
+                    single<Notifier> { notifier }
+                    single { chatRequests }
                 },
                 chatModule,
             )
         }
+        chatRepository.messages.value = listOf(Message(1, Author.Me, "Sunset", Image("/cache/images/sunset.jpg")))
     }
 
     @AfterTest
@@ -56,7 +66,6 @@ class ChatNavigationTest {
 
     @Test
     fun `PHOTO-05 tapping a photo opens it full screen and Back returns to the chat`() = runComposeUiTest {
-        chatRepository.messages.value = listOf(Message(1, Author.Me, "Sunset", Image("/cache/images/sunset.jpg")))
         setContent { AppTestHost { EchoChatApp() } }
 
         onNodeWithContentDescription("Open photo from you").performClick()
@@ -66,5 +75,32 @@ class ChatNavigationTest {
         onNodeWithContentDescription("Back").performClick()
 
         onNodeWithText("Sunset").assertIsDisplayed()
+    }
+
+    @Test
+    fun `NOTIFY-02 the chat tells the notifier when it is on screen and when the photo viewer covers it`() = runComposeUiTest {
+        setContent { AppTestHost { EchoChatApp() } }
+        waitForIdle()
+        assertTrue(notifier.chatShown, "The chat should be on screen")
+
+        onNodeWithContentDescription("Open photo from you").performClick()
+        waitForIdle()
+        assertFalse(notifier.chatShown, "The photo viewer covers the chat")
+
+        onNodeWithContentDescription("Back").performClick()
+        waitForIdle()
+        assertTrue(notifier.chatShown, "The chat should be back on screen")
+    }
+
+    @Test
+    fun `NOTIFY-04 asking for the chat closes the photo viewer`() = runComposeUiTest {
+        setContent { AppTestHost { EchoChatApp() } }
+        onNodeWithContentDescription("Open photo from you").performClick()
+        onNodeWithContentDescription("Photo from you").assertIsDisplayed()
+
+        chatRequests.request()
+
+        onNodeWithText("Sunset").assertIsDisplayed()
+        onNodeWithContentDescription("Photo from you").assertDoesNotExist()
     }
 }
