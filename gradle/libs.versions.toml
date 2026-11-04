@@ -10,6 +10,8 @@ androidxCompose = "1.12.1"
 activityCompose = "1.13.0"
 lifecycle = "2.11.0"
 navigation3 = "1.2.0"
+# The version Compose Multiplatform 1.12.2 and Navigation 3 already resolve to; used directly for Back.
+navigationevent = "1.1.0"
 koin = "4.2.2"
 coil = "3.6.3"
 filekit = "0.17.0"
@@ -36,6 +38,7 @@ lifecycle-viewmodel-navigation3 = { group = "org.jetbrains.androidx.lifecycle", 
 # Google publishes the Navigation 3 runtime for every platform; JetBrains publishes the UI for the non-Android ones.
 navigation3-runtime = { group = "androidx.navigation3", name = "navigation3-runtime", version.ref = "navigation3" }
 navigation3-ui = { group = "org.jetbrains.androidx.navigation3", name = "navigation3-ui", version.ref = "navigation3" }
+navigationevent-compose = { group = "org.jetbrains.androidx.navigationevent", name = "navigationevent-compose", version.ref = "navigationevent" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 filekit-coil = { group = "io.github.vinceglb", name = "filekit-coil", version.ref = "filekit" }
 filekit-core = { group = "io.github.vinceglb", name = "filekit-core", version.ref = "filekit" }

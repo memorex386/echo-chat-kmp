@@ -17,6 +17,9 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -36,6 +39,8 @@ import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.rightClick
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -47,7 +52,13 @@ import com.echochat.core.model.Author
 import com.echochat.core.model.Image
 import com.echochat.core.model.Message
 import kotlin.test.Test
+import androidx.navigationevent.DirectNavigationEventInput
+import androidx.navigationevent.NavigationEventDispatcher
+import androidx.navigationevent.NavigationEventDispatcherOwner
+import androidx.navigationevent.OnBackCompletedFallback
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 // Runs on the desktop JVM here, and on the iOS simulator on a Mac.
@@ -102,7 +113,7 @@ class ChatScreenTest {
             rotation.Screen {
                 EchoChatTheme {
                     Box(Modifier.size(Portrait.width, if (rotation.rotated) 220.dp else 460.dp)) {
-                        ChatScreen(uiState, typed, null, false, {}, {}, {}, {}, {}, {})
+                        ChatScreen(uiState, typed, null, false, {}, {}, {}, {}, {}, {}, keyboardUp = rotation.keyboardUp)
                     }
                 }
             }
@@ -116,6 +127,10 @@ class ChatScreenTest {
      */
     private class Rotation(private val test: ComposeUiTest) {
         var rotated = false
+
+        /** Whether the on-screen keyboard is showing, which a desktop test has to say itself. */
+        var keyboardUp by mutableStateOf(false)
+            private set
         private var shown by mutableStateOf(true)
         private var registry by mutableStateOf(SaveableStateRegistry(null) { true })
 
@@ -123,6 +138,11 @@ class ChatScreenTest {
         @Composable
         fun Screen(content: @Composable () -> Unit) {
             if (shown) CompositionLocalProvider(LocalSaveableStateRegistry provides registry, content = content)
+        }
+
+        fun keyboard(up: Boolean) {
+            test.runOnIdle { keyboardUp = up }
+            test.waitForIdle()
         }
 
         fun rotate() {
@@ -455,6 +475,92 @@ class ChatScreenTest {
             listOf(MessageAction.SavePhoto(photo), MessageAction.CopyPhoto(photo), MessageAction.Delete(photo)),
             actions,
         )
+    }
+
+    @Test
+    fun `KEY-01 tapping the input closes the attach panel`() = runComposeUiTest {
+        showChat()
+        val input = onNode(hasSetTextAction())
+        input.performClick()
+        onNodeWithContentDescription("Attach").performClick()
+        onNodeWithText("Gallery").assertIsDisplayed()
+        input.assertIsNotFocused()
+
+        input.performClick()
+
+        onNodeWithText("Gallery").assertDoesNotExist()
+        input.assertIsFocused()
+    }
+
+    @Test
+    fun `KEY-02 Back closes the attach panel and only then leaves the chat`() = runComposeUiTest {
+        var leftChat = false
+        val back = DirectNavigationEventInput()
+        val dispatcher = NavigationEventDispatcher(OnBackCompletedFallback { leftChat = true })
+        dispatcher.addInput(back)
+        val owner = object : NavigationEventDispatcherOwner {
+            override val navigationEventDispatcher = dispatcher
+        }
+        setContent {
+            CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides owner) {
+                EchoChatTheme { ChatScreen(uiState, "", null, false, {}, {}, {}, {}, {}, {}) }
+            }
+        }
+        onNodeWithContentDescription("Attach").performClick()
+
+        runOnIdle { back.backCompleted() }
+
+        onNodeWithText("Gallery").assertDoesNotExist()
+        assertFalse(leftChat, "The first Back should only close the panel")
+
+        runOnIdle { back.backCompleted() }
+
+        assertTrue(leftChat, "With the panel closed, Back should leave the chat")
+    }
+
+    @Test
+    fun `KEY-03 the cursor is back in the input after a rotation`() = runComposeUiTest {
+        val rotation = showRotatableChat()
+        onNode(hasSetTextAction()).performClick()
+        rotation.keyboard(up = true)
+
+        rotation.rotate()
+
+        onNode(hasSetTextAction()).assertIsFocused()
+    }
+
+    @Test
+    fun `KEY-03 the cursor comes back at the end of what I'd typed`() = runComposeUiTest {
+        typed = "Half a thought"
+        val rotation = showRotatableChat()
+        onNode(hasSetTextAction()).performClick()
+        rotation.keyboard(up = true)
+
+        rotation.rotate()
+
+        onNode(hasSetTextAction())
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.TextSelectionRange, TextRange(typed.length)))
+    }
+
+    @Test
+    fun `KEY-03 a rotation doesn't put the cursor in the input if I wasn't typing`() = runComposeUiTest {
+        val rotation = showRotatableChat()
+
+        rotation.rotate()
+
+        onNode(hasSetTextAction()).assertIsNotFocused()
+    }
+
+    @Test
+    fun `KEY-03 a rotation doesn't bring back a keyboard I closed`() = runComposeUiTest {
+        val rotation = showRotatableChat()
+        onNode(hasSetTextAction()).performClick()
+        rotation.keyboard(up = true)
+        rotation.keyboard(up = false)
+
+        rotation.rotate()
+
+        onNode(hasSetTextAction()).assertIsNotFocused()
     }
 
     private fun mine(id: Long, text: String) = Message(id, Author.Me, text)

@@ -12,7 +12,7 @@ The brief asked for two things: send a text message that appears on the right, a
 | 3. Polish: jump arrow, unsent work kept, landscape width, long text, photo captions, motion | ✅ | ✅ | ✅ Shared tests only |
 | 4. Notifications: a reply while away notifies, tapping it opens the chat | ✅ | ✅ Minimized not checked by hand | ✅ |
 | 5. Message actions: copy, save, delete with Undo, from a long-press or right-click | ✅ | ✅ Save opens a Save dialog | ✅ |
-| 6. Keyboard | ⬜ | ⬜ | ⬜ |
+| 6. Keyboard: panel and keyboard take turns, Back closes the panel, rotation, landscape typing, Enter sends on desktop | ✅ | ✅ | ✅ Known issue after a rotation with the keyboard up (D33) |
 
 The criteria and their status are in [docs/spec.md](docs/spec.md), and the choices behind the build are in [docs/decisions.md](docs/decisions.md).
 
@@ -21,7 +21,7 @@ The criteria and their status are in [docs/spec.md](docs/spec.md), and the choic
 - `./gradlew :androidApp:connectedDebugAndroidTest` runs the Android device tests on a running emulator or phone.
 - `./gradlew :androidApp:installDebug` installs the Android app. It runs on Android 8.0 and later.
 - `./gradlew :desktopApp:run` runs the desktop app.
-- iOS, on a Mac: open `iosApp/iosApp.xcodeproj` in Xcode and run the `iosApp` scheme. Xcode builds the shared code through Gradle, so the Mac needs JDK 21 too. Test runs the iOS end-to-end test.
+- iOS, on a Mac: open `iosApp/iosApp.xcodeproj` in Xcode and run the `iosApp` scheme. Xcode builds the shared code through Gradle, so the Mac needs JDK 21 too. Test runs the iOS end-to-end tests, which need the simulator's on-screen keyboard to stay up (D32).
 
 Built with JDK 21, Android SDK 37, Xcode 27, Kotlin 2.4.21 and Compose Multiplatform 1.12.2.
 

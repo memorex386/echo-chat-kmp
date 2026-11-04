@@ -191,3 +191,35 @@ New in this version:
 - **Copying a photo is tested on each platform.** Desktop and iOS have their own `PhotoClipTest`. The iOS one uses a pasteboard of its own, so the simulator's clipboard is left alone. Android's runs on a device, through the real `FileProvider`, which Robolectric can't run on Windows, as the original found.
 - **The whole app with the real repository.** `MessageActionsTest` starts the app's real Koin modules and swaps in fakes only for the clipboard, image store and notifier. Delete and Undo go through the real store.
 - **Saving to the real Photos or Pictures** is checked by the iOS UI test and by hand.
+
+## D30: The keyboard, the attach panel and landscape, carried over (2026-11-04)
+The original's choices, from its check with Samsung Keyboard on a Galaxy S23, are unchanged:
+- **The attach panel and the keyboard take turns.** Opening the panel takes the cursor out of the input, which closes the keyboard. Putting the cursor back in the input closes the panel. Back closes the panel before it leaves the chat.
+- **The keyboard survives a rotation.** The screen saves whether the keyboard is up, and that value changes only while the screen is resumed, because a rotation takes the keyboard down as it rebuilds the screen. If it was up, the input takes the cursor again, at the end of the draft, which brings the keyboard back.
+- **Full-screen typing in landscape**, as Google Messages does. Compose asks keyboards never to go full screen, and the input lifts that through `InterceptPlatformTextInput`, which is marked experimental.
+
+How each piece works across platforms:
+- **Back** is Navigation Event's `NavigationBackHandler`, the multiplatform back handling Navigation 3 is built on. Android's Back, Esc on desktop and iOS's swipe in from the screen's edge all reach it. Its library is declared at 1.1.0, the version Compose and Navigation 3 already resolve to.
+- **Whether the keyboard is up** comes from `isKeyboardUp()`: `isImeVisible` on Android, which isn't in Compose Multiplatform's common code, the keyboard's inset on iOS, and always false on desktop, which has no on-screen keyboard. `ChatScreen` takes it as a parameter, so shared tests can say when the keyboard is up.
+- **A rotation** only rebuilds the screen on Android. iOS keeps the screen, and the keyboard with it, which the iOS UI test checks, though Compose then lays the chat out too high (D33). Desktop has neither.
+- **The full-screen keyboard** is Android only. iPhone keyboards have no full-screen text box, so iOS keeps the chat above the keyboard, as Messages does.
+- **Device tests instead of Robolectric.** The original checked the full-screen request and its Send key with Robolectric. `feature:chat` has no Android local tests (D6), so `ChatEndToEndTest` checks them on a device, next to the test that rebuilds the activity while typing.
+
+## D31: Enter sends on desktop (2026-11-04)
+This carries out D11. On desktop, Enter and the number pad's Enter send, and Shift+Enter starts a new line, as in desktop chat apps. With nothing to send, Enter does nothing rather than adding an empty line. The input catches Enter before the text field does, through `onPreviewKeyEvent`. Phones and tablets are unchanged: their keyboard's Send key sends, and Enter on a hardware keyboard starts a new line.
+
+## D32: The iOS simulator keeps its on-screen keyboard (2026-11-04)
+The iOS UI tests tap the keyboard's Send key, so they need the on-screen keyboard. During this slice the simulator stopped showing it, even for the last commit's code and after a restart: its keyboard settings had `AutomaticMinimizationEnabled` on, which collapses the keyboard when iOS thinks a hardware keyboard is attached. Echo's own simulator now has it off:
+
+`xcrun simctl spawn <simulator> defaults write com.apple.keyboard.preferences AutomaticMinimizationEnabled -bool NO`
+
+A new simulator needs the same before the UI tests run. It is a setting of the test device, not of the app.
+
+## D33: Known issue: on iOS, a rotation with the keyboard up slides the chat up (2026-11-04)
+After the iPhone turns to landscape and back with the keyboard up, the keyboard stays up and the draft is kept, but the whole chat sits higher than it should, with the top bar off the screen. It is back in place once the keyboard closes. It isn't new in this slice: the last commit's code does the same.
+
+The cause is in Compose Multiplatform 1.12.2. It doesn't update the keyboard's inset when the screen turns with the keyboard already up, so the chat no longer makes room for it. Compose's default then slides the whole view up to keep the input clear of the keyboard, which takes the top bar with it.
+
+Turning that slide off (`OnFocusBehavior.DoNothing`) kept the top bar, but left the input behind the keyboard, which is worse, so the default stays. The iOS UI test records the top bar as an expected failure. It isn't strict, so a Compose release that fixes the inset passes too, and the check can then become a plain one.
+
+Rotating with the keyboard up is uncommon on a phone, and closing the keyboard puts it right.

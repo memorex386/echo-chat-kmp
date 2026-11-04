@@ -94,6 +94,74 @@ final class ChatEndToEndUITests: XCTestCase {
         keepScreenshot(of: app, named: "opened-from-notification")
     }
 
+    // KEY-01 to KEY-03 on iOS: the attach panel and the keyboard take turns, the swipe in from the
+    // screen's edge closes the panel, and a rotation keeps the keyboard up.
+    func testTheAttachPanelAndTheKeyboardTakeTurns() {
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertTrue(app.textViews["Message"].waitForExistence(timeout: 10))
+        // The input is labelled by its placeholder only while it's empty.
+        let message = app.textViews.firstMatch
+        let window = app.windows.firstMatch
+
+        message.tap()
+        XCTAssertTrue(eventually { self.keyboardIsShown(in: app) })
+        message.typeText("Half a thought")
+        app.buttons["Attach"].tap()
+        XCTAssertTrue(app.staticTexts["Gallery"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        keepScreenshot(of: app, named: "panel-open")
+
+        message.tap()
+        XCTAssertTrue(eventually { self.keyboardIsShown(in: app) })
+        XCTAssertFalse(app.staticTexts["Gallery"].exists)
+
+        app.buttons["Attach"].tap()
+        XCTAssertTrue(app.staticTexts["Gallery"].waitForExistence(timeout: 3))
+        let edge = app.coordinate(withNormalizedOffset: CGVector(dx: 0.0, dy: 0.5))
+        edge.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5)))
+        XCTAssertTrue(app.staticTexts["Gallery"].waitForNonExistence(timeout: 3))
+
+        // XCTest's landscape screenshots come out turned and cut off on this simulator, so the
+        // window's shape shows the turn instead.
+        message.tap()
+        XCTAssertTrue(eventually { self.keyboardIsShown(in: app) })
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(eventually { window.frame.width > window.frame.height }, "The app should turn to landscape")
+        XCTAssertTrue(eventually { self.keyboardIsShown(in: app) })
+        XCUIDevice.shared.orientation = .portrait
+        XCTAssertTrue(eventually { window.frame.width < window.frame.height })
+        XCTAssertTrue(eventually { self.keyboardIsShown(in: app) })
+        XCTAssertEqual(message.value as? String, "Half a thought")
+
+        // Known issue (D33): Compose doesn't update the keyboard's inset after a rotation, so its
+        // fallback slides the whole screen up and the top bar is off it until the keyboard closes.
+        // Not strict, so a Compose that fixes it passes too; then this can become a plain check.
+        sleep(2) // Where the screen settles is what counts.
+        let topBar = app.staticTexts["Echo"]
+        let options = XCTExpectedFailure.Options()
+        options.isStrict = false
+        XCTExpectFailure("The top bar slides off after a rotation with the keyboard up (D33)", options: options) {
+            XCTAssertTrue(topBar.exists && topBar.frame.minY >= 0)
+        }
+        keepScreenshot(of: app, named: "typing-after-turning")
+    }
+
+    // A minimized keyboard still exists, off the bottom of the screen (D32), so this checks where it is.
+    private func keyboardIsShown(in app: XCUIApplication) -> Bool {
+        let keyboard = app.keyboards.firstMatch
+        return keyboard.exists && keyboard.frame.intersects(app.windows.firstMatch.frame)
+    }
+
+    private func eventually(timeout: TimeInterval = 3, _ condition: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return condition()
+    }
+
     private func send(_ text: String, in app: XCUIApplication) {
         // The input takes up to 4 lines, so iOS sees it as a text view rather than a text field.
         let message = app.textViews["Message"]

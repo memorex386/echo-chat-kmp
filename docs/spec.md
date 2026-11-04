@@ -87,18 +87,16 @@ Checked by screen recording, not by tests.
 | ACTION-05 | Delete removes the message, the whole message if it has a photo and caption, straight away, and shows "Message deleted" with Undo for about 4 seconds. Undo puts it back in the same place. Only the pressed message goes: an echo stays unless I delete it too. | `ChatRepositoryTest` (core:data), `ChatViewModelTest` (feature:chat), `MessageActionsTest` (shared), all common; `ChatEndToEndUITests` (iOS simulator) | ✅ |
 | ACTION-06 | Deleting a message before its reply arrives doesn't stop the reply. Echo keeps typing, and the reply arrives on time. | `ChatRepositoryTest` (core:data, common) | ✅ |
 
-### Later slices
-Each is ported from the original spec when its slice starts, with any platform differences written into the criterion.
-
-| Slice | Criteria | Status |
-|---|---|---|
-| 6. Keyboard: attach panel, rotation, landscape typing, Enter on desktop | KEY-01 to KEY-05 | ⬜ |
-
-New in this version, built with slice 6:
-
+### Slice 6: keyboard
 | ID | Criterion | Tests (module, where) | Status |
 |---|---|---|---|
-| KEY-05 | On desktop, Enter sends the message and Shift+Enter starts a new line. Found while checking slice 1: Enter only added a line, and a desktop keyboard has no Send key. | Not written yet | ⬜ |
+| KEY-01 | Tapping the input while the attach panel is open closes the panel, so the panel and the keyboard never show together. | `ChatScreenTest` (feature:chat, common); `ChatEndToEndUITests` (iOS simulator) | ✅ |
+| KEY-02 | Back closes the attach panel. Only after that does Back leave the chat. Back is Android's Back, Esc on desktop, and the swipe in from the screen's edge on iOS. | `ChatScreenTest` (feature:chat, common); `ChatEndToEndUITests` (iOS simulator) | ✅ |
+| KEY-03 | If the keyboard was up when the screen rotates, it comes back up afterwards, with the cursor at the end of what I'd typed. If I had closed it, it stays closed. Android rebuilds the screen when it rotates, which is where this matters. iOS keeps the screen and the keyboard through a rotation. Desktop has neither. | `ChatScreenTest` (feature:chat, common); `ChatEndToEndTest` (androidApp, device); `ChatEndToEndUITests` (iOS simulator) | ✅ |
+| KEY-04 | In landscape on Android, typing uses the keyboard's full-screen text box with its own Send button, as in Google Messages, rather than squeezing the chat to a strip. The chat shows again when the keyboard closes. iPhone keyboards have no full-screen box, so iOS keeps the chat above the keyboard, as Messages does. | `ChatEndToEndTest` (androidApp, device); the full-screen box is checked by hand | ✅ |
+| KEY-05 | On desktop, Enter sends the message and Shift+Enter starts a new line. New in this version: found while checking slice 1, where Enter only added a line and a desktop keyboard has no Send key. Phones and tablets keep their own keyboard's Send key, and Enter on a hardware keyboard starts a new line there, as before. | `EnterToSendTest` (feature:chat, desktop) | ✅ |
+
+Known issue on iOS: after a rotation with the keyboard up, the chat sits too high until the keyboard closes (D33).
 
 ## Screen states
 The states and the look are the original's, in [mocks/chat.html](mocks/chat.html). Slice 1 covers S-01 Empty, S-02 Typing, S-03 Echo is typing, S-04 Replied, S-05 Quick sends, S-06 Long chat and S-08 Dark. Slice 2 adds S-09 Photo attached, S-10 Photos and S-11 Photo viewer. Slice 3 adds S-07 Long text and S-13 Scrolled up when a reply arrives, and draws S-10 with each photo apart from its caption, which the mock doesn't show. Slice 5 adds S-14 Message menu open and S-15 Just deleted, which the mock doesn't show either: see the slice's checkpoint.

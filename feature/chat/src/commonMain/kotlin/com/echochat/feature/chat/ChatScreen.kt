@@ -74,6 +74,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
@@ -87,16 +90,20 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.echochat.core.designsystem.component.Avatar
@@ -138,6 +145,9 @@ import com.echochat.feature.chat.resources.save
 import com.echochat.feature.chat.resources.scroll_to_latest
 import com.echochat.feature.chat.resources.send
 import com.echochat.feature.chat.resources.undo
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
@@ -235,7 +245,8 @@ private fun rememberCopy(snackbarHostState: SnackbarHostState): (suspend Clipboa
 
 /**
  * [onTakePhoto] is null where there is no camera, as on desktop. [canSavePhotos] is false where
- * a photo can't be saved, so the photo menu leaves Save out.
+ * a photo can't be saved, so the photo menu leaves Save out. [keyboardUp] is whether the
+ * on-screen keyboard is showing; desktop has none.
  */
 @Composable
 fun ChatScreen(
@@ -253,9 +264,16 @@ fun ChatScreen(
     onAction: (MessageAction) -> Unit = {},
     canSavePhotos: Boolean = true,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    keyboardUp: Boolean = isKeyboardUp(),
 ) {
     var attachPanelOpen by rememberSaveable { mutableStateOf(false) }
-    val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    // Back closes the panel before it leaves the chat: Android's Back, Esc on desktop, the edge swipe on iOS.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = attachPanelOpen,
+        onBackCompleted = { attachPanelOpen = false },
+    )
 
     // Landscape is measured on the whole screen, so the keyboard opening doesn't change it.
     BoxWithConstraints(modifier) {
@@ -291,10 +309,14 @@ fun ChatScreen(
                     attachPanelOpen = attachPanelOpen,
                     onDraftChange = onDraftChange,
                     onSend = onSend,
+                    // The panel and the keyboard take turns: taking the cursor out of the input closes
+                    // the keyboard, and putting it back closes the panel.
                     onToggleAttachPanel = {
                         attachPanelOpen = !attachPanelOpen
-                        if (attachPanelOpen) keyboard?.hide()
+                        if (attachPanelOpen) focusManager.clearFocus()
                     },
+                    onInputFocused = { attachPanelOpen = false },
+                    keyboardUp = keyboardUp,
                     onRemoveAttachment = onRemoveAttachment,
                     modifier = if (attachPanelOpen) Modifier else Modifier.navigationBarsPadding(),
                 )
@@ -690,9 +712,30 @@ private fun Composer(
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
     onToggleAttachPanel: () -> Unit,
+    onInputFocused: () -> Unit,
+    keyboardUp: Boolean,
     onRemoveAttachment: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Whether I'm typing, meaning the keyboard is up, saved with the screen: after Android rebuilds the
+    // screen for a rotation, the cursor, and with it the keyboard, comes back only if it was. It changes
+    // only while the screen is resumed, because a rotation takes the keyboard down as it rebuilds.
+    var typing by rememberSaveable { mutableStateOf(false) }
+    val wasTyping = remember { typing }
+    val focusRequester = remember { FocusRequester() }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(keyboardUp) {
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) typing = keyboardUp
+    }
+    LaunchedEffect(Unit) {
+        if (wasTyping) focusRequester.requestFocus()
+    }
+    // The view model keeps the draft as plain text. The cursor, and the word the keyboard is still
+    // composing, live here. When the draft changes from outside, by sending or by being restored,
+    // the cursor goes to its end.
+    var field by remember { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
+    val shown = if (field.text == draft) field else TextFieldValue(draft, TextRange(draft.length))
+
     Column(modifier.fillMaxWidth()) {
         if (attachment != null) {
             AttachmentPreview(attachment, onRemoveAttachment, Modifier.padding(start = 60.dp, top = 8.dp))
@@ -712,25 +755,34 @@ private fun Composer(
                     modifier = Modifier.rotate(plusTurn),
                 )
             }
-            TextField(
-                value = draft,
-                onValueChange = onDraftChange,
-                placeholder = { Text(stringResource(Res.string.message_placeholder)) },
-                shape = RoundedCornerShape(28.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                ),
-                maxLines = 4,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Send,
-                ),
-                keyboardActions = KeyboardActions(onSend = { onSend() }),
-                modifier = Modifier.weight(1f),
-            )
+            AllowFullScreenKeyboard {
+                TextField(
+                    value = shown,
+                    onValueChange = {
+                        field = it
+                        onDraftChange(it.text)
+                    },
+                    placeholder = { Text(stringResource(Res.string.message_placeholder)) },
+                    shape = RoundedCornerShape(28.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                    ),
+                    maxLines = 4,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Send,
+                    ),
+                    keyboardActions = KeyboardActions(onSend = { onSend() }),
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { if (it.isFocused) onInputFocused() }
+                        .enterSends(canSend, onSend),
+                )
+            }
             FilledIconButton(
                 onClick = onSend,
                 enabled = canSend,

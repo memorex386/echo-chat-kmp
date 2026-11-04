@@ -27,6 +27,7 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.coil.compose)
             implementation(libs.filekit.dialogs.compose)
+            implementation(libs.navigationevent.compose)
         }
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)

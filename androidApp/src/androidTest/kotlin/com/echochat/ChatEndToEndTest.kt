@@ -7,7 +7,10 @@ import android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED as UNSPECI
 import android.content.res.Configuration.ORIENTATION_LANDSCAPE
 import android.content.res.Configuration.ORIENTATION_PORTRAIT
 import androidx.compose.ui.test.assert
+import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -16,6 +19,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import com.echochat.feature.chat.sharedPhotoUri
@@ -84,6 +90,43 @@ class ChatEndToEndTest {
         assertEquals("${app.packageName}.images", shared.authority)
         assertEquals("image/jpeg", app.contentResolver.getType(shared))
         assertArrayEquals(byteArrayOf(1, 2, 3), app.contentResolver.openInputStream(shared)!!.use { it.readBytes() })
+    }
+
+    // KEY-03 on a real Android build, where rebuilding the activity tears the old screen down after its
+    // state is saved, and the teardown takes the cursor and keyboard away. Shared tests can't reproduce that.
+    @Test
+    fun `KEY-03_theKeyboardComesBackAfterTheActivityIsRebuiltWhileTyping`() {
+        composeRule.onNode(hasSetTextAction()).performClick()
+        // A device with a hardware keyboard never opens the on-screen one, so tell the screen it opened.
+        composeRule.runOnIdle {
+            val content = composeRule.activity.findViewById<ViewGroup>(android.R.id.content)
+            val insets = WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 300))
+                .setVisible(WindowInsetsCompat.Type.ime(), true)
+                .build()
+            ViewCompat.dispatchApplyWindowInsets(content.getChildAt(0), insets)
+        }
+        composeRule.waitForIdle()
+
+        composeRule.activityRule.scenario.recreate()
+
+        composeRule.onNode(hasSetTextAction()).assertIsFocused()
+    }
+
+    // KEY-04: Compose asks keyboards never to go full screen; the input lifts that, and the
+    // keyboard's own Send key still sends. The full-screen box itself is checked by hand.
+    @Test
+    fun `KEY-04_theKeyboardMayGoFullScreenAndItsSendKeySends`() {
+        composeRule.onNode(hasSetTextAction()).performTextInput("Sent from the keyboard")
+        val editorInfo = EditorInfo()
+        val connection = composeRule.runOnIdle {
+            checkNotNull(composeRule.activity.currentFocus?.onCreateInputConnection(editorInfo))
+        }
+
+        assertEquals(0, editorInfo.imeOptions and EditorInfo.IME_FLAG_NO_FULLSCREEN)
+        assertEquals(EditorInfo.IME_ACTION_SEND, editorInfo.imeOptions and EditorInfo.IME_MASK_ACTION)
+        composeRule.runOnIdle { connection.performEditorAction(EditorInfo.IME_ACTION_SEND) }
+        composeRule.onNodeWithText("Sent from the keyboard").assertIsDisplayed()
     }
 
     private fun orientation(): Int {
