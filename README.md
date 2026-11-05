@@ -4,6 +4,29 @@ My Echo chat take-home, rebuilt in Kotlin Multiplatform so I can learn it. The o
 
 The brief asked for two things: send a text message that appears on the right, and get a simulated reply on the left 5 seconds later. The original added photos, notifications, message actions and keyboard handling on top. Those come across here one slice at a time.
 
+## Same chat, three platforms
+| Android | Desktop | iOS |
+|:---:|:---:|:---:|
+| <img src="docs/verification/media/03-android-replied.png" height="480" alt="Android: I say Hi there, and Echo replies You said: Hi there"> | <img src="docs/verification/media/06-desktop-replied.png" height="480" alt="Desktop: the same chat in a window"> | <img src="docs/verification/media/11-ios-replied.png" height="480" alt="iOS: I say Hello, and Echo replies You said: Hello"> |
+| <img src="docs/verification/media/46-android-photo-menu-dark.png" height="480" alt="Android in dark theme: a photo's menu with Save, Copy and Delete"> | <img src="docs/verification/media/50-desktop-photo-menu.png" height="480" alt="Desktop: the same menu, opened with a right-click"> | <img src="docs/verification/media/53-ios-photo-menu.png" height="480" alt="iOS: the same menu, opened with a long-press"> |
+
+Top: a message and Echo's reply. Bottom: a photo's menu, opened with a long-press on the phones and a right-click on desktop. The Android one is in dark theme.
+
+## How much is shared
+One Compose UI draws the whole chat on all three platforms, and the logic behind it is shared too. So most of the code is written once:
+
+| Code | Lines | Share |
+|---|---:|---:|
+| Shared by all three | 1,176 | 76% |
+| Android only | 141 | 9% |
+| iOS only, including 23 lines of Swift | 119 | 8% |
+| Desktop only | 115 | 7% |
+| Android and iOS only: the camera | 5 | under 1% |
+
+Each app runs about 90% shared code. The rest is what each system does its own way: notifications, the app's entry point, saving photos, the clipboard and the keyboard. Of the test code, 72% is shared, and each shared test runs on all three platforms.
+
+Counted in November 2026, without blank lines, comments, imports or build files.
+
 ## Where it is
 | Slice | Android | Desktop | iOS |
 |---|---|---|---|
