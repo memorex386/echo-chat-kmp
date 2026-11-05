@@ -90,6 +90,19 @@ Save downloaded "Echo Chat" and the time as a JPEG. The browser's Back left the 
 
 Edge, headless, ran the app and drew the chat. It ignores the flag that turns off WebAssembly's garbage collection, so it couldn't show this message.
 
+### The live demo, in Chrome
+https://memorex386.github.io/echo-chat-kmp/, published by the workflow.
+
+| | What happened |
+|---|---|
+| WEB-01 | The page loads from GitHub Pages, and a message gets Echo's reply. |
+| NOTIFY-05 | The first send asked to show notifications, and I allowed it. |
+| NOTIFY-02 | A reply while the chat was on screen didn't notify. |
+| NOTIFY-01 | After switching away from the tab, Echo's reply came as a Windows notification from Chrome. |
+| NOTIFY-04 | Clicking the notification brought Chrome back to the chat. |
+| PHOTO-01 | A JPEG set on Chrome's own file input was attached, sent and echoed. |
+| ACTION-01, ACTION-03 | Right-click, then Copy, on Echo's photo: Chrome accepted the PNG, and the app said "Copied". |
+
 ## Found and fixed on the way
 - **A refused copy stopped the web app.** The browser's refusal escaped uncaught and stopped Compose. The copy catches it now, on every platform, with a test (D37).
 - **The browser's right-click menu closed the app's.** The page turns the browser's menu off.
@@ -98,5 +111,4 @@ Edge, headless, ran the app and drew the chat. It ignores the flag that turns of
 
 ## Not verified here
 - **Desktop Safari.** WebKit was checked on the iOS simulator instead.
-- **A real browser notification.** This is to be checked on the live demo in Chrome.
 - **Once:** while the pane was being opened and resized, the app drew itself about 1.3 times too big until the page was reloaded. It didn't happen again.

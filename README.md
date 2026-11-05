@@ -36,7 +36,7 @@ Counted in November 2026, without blank lines, comments, imports or build files.
 | 1. Text chat: send, typing dots, echo after 5 s | ✅ | ✅ | ✅ | ✅ |
 | 2. Photos: gallery and camera, photo echo, full-screen viewer | ✅ | ✅ Gallery only: no camera | ✅ Camera not checked: the simulator has none | ✅ Gallery only: no camera |
 | 3. Polish: jump arrow, unsent work kept, landscape width, long text, photo captions, motion | ✅ | ✅ | ✅ Shared tests only | ✅ Shared tests only |
-| 4. Notifications: a reply while away notifies, tapping it opens the chat | ✅ | ✅ Minimized not checked by hand | ✅ | ✅ The app's side; a real browser notification not checked by hand |
+| 4. Notifications: a reply while away notifies, tapping it opens the chat | ✅ | ✅ Minimized not checked by hand | ✅ | ✅ |
 | 5. Message actions: copy, save, delete with Undo, from a long-press or right-click | ✅ | ✅ Save opens a Save dialog | ✅ | ✅ Save downloads the photo |
 | 6. Keyboard: panel and keyboard take turns, Back closes the panel, rotation, landscape typing, Enter sends on desktop | ✅ | ✅ | ✅ Known issue after a rotation with the keyboard up (D33) | ✅ Esc or the browser's Back closes the panel |
 | 7. Web: desktop browsers, a message for older ones, published to GitHub Pages | — | — | — | ✅ |
