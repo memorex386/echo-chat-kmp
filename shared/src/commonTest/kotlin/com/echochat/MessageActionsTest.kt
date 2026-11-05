@@ -32,6 +32,9 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import com.echochat.core.testing.loadStrings
+import com.echochat.feature.chat.resources.Res
+import com.echochat.feature.chat.resources.allStringResources
 
 // The whole app with the real repository, so a delete and its Undo go all the way through.
 // Only the clipboard, the image store and the notifier are fakes.
@@ -65,9 +68,12 @@ class MessageActionsTest {
         CoroutineScope(Dispatchers.Unconfined).launch { KoinPlatform.getKoin().get<ChatRepository>().send(text) }
     }
 
-    private fun ComposeUiTest.showApp() = setContent {
-        CompositionLocalProvider(LocalClipboard provides clipboard) {
-            AppTestHost { EchoChatApp() }
+    private suspend fun ComposeUiTest.showApp() {
+        loadStrings(Res.allStringResources)
+        setContent {
+            CompositionLocalProvider(LocalClipboard provides clipboard) {
+                AppTestHost { EchoChatApp() }
+            }
         }
     }
 
@@ -83,6 +89,22 @@ class MessageActionsTest {
         assertEquals("Copy me", clipboard.entry?.plainText())
         // These tests run on desktop and iOS, which don't confirm a copy themselves.
         onNodeWithText("Copied").assertIsDisplayed()
+    }
+
+    // A browser refuses a copy when the page lacks focus, or Safari when it isn't straight after a click.
+    @Test
+    fun `ACTION-02 a copy the system refuses doesn't say Copied and the app carries on`() = runComposeUiTest {
+        clipboard.refuses = true
+        send("Copy me")
+        showApp()
+
+        onNodeWithText("Copy me").performTouchInput { longClick() }
+        onNodeWithText("Copy").performClick()
+        waitForIdle()
+
+        onNodeWithText("Copied").assertDoesNotExist()
+        onNodeWithText("Copy me").performTouchInput { longClick() }
+        onNodeWithText("Delete").assertIsDisplayed()
     }
 
     @Test

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Echo Chat</title>
+  <meta name="description" content="A chat with Echo, who repeats what you say 5 seconds later. Built once in Kotlin Multiplatform for Android, desktop, iOS and the web.">
+  <link rel="icon" href="echo.svg" type="image/svg+xml">
+  <style>
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    /* The chat's own background, so the page doesn't flash white while the app loads. */
+    body { background: #F5FAF8; color: #161D1B; }
+    @media (prefers-color-scheme: dark) { body { background: #0F1513; color: #DDE4E1; } }
+    #old-browser { font-family: system-ui, sans-serif; line-height: 1.5; max-width: 32rem; margin: 20vh auto 0; padding: 0 1.5rem; }
+    #old-browser h1 { font-size: 1.4rem; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div id="old-browser" hidden>
+    <h1>Echo Chat needs a newer browser</h1>
+    <p>It runs in Chrome or Edge 119 or later, Firefox 120 or later, and Safari 18.2 or later.</p>
+  </div>
+  <script>
+    // Kotlin/Wasm needs WebAssembly's garbage collection (D35). This tiny module declares a
+    // garbage-collected type, so only a browser that has it can validate it (WEB-02).
+    const canRun = typeof WebAssembly === "object" &&
+      WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 95, 1, 120, 0]));
+    if (canRun) {
+      // The whole page is the app, and it has its own right-click menu (ACTION-01). The browser's
+      // would open on top of it and take the focus, which closes the app's menu.
+      document.addEventListener("contextmenu", event => event.preventDefault());
+      const app = document.createElement("script");
+      app.src = "echochat.js";
+      document.body.appendChild(app);
+    } else {
+      document.getElementById("old-browser").hidden = false;
+    }
+  </script>
+</body>
+</html>

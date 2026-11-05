@@ -227,7 +227,10 @@ fun ChatRoute(
     )
 }
 
-/** Copies something to the clipboard, and says "Copied" where the system doesn't. */
+/**
+ * Copies something to the clipboard, and says "Copied" where the system doesn't. A browser can
+ * refuse a copy, and then nothing is said: left uncaught, the refusal would stop the whole app.
+ */
 @Composable
 private fun rememberCopy(snackbarHostState: SnackbarHostState): (suspend Clipboard.(label: String) -> Unit) -> Unit {
     val clipboard = LocalClipboard.current
@@ -236,8 +239,8 @@ private fun rememberCopy(snackbarHostState: SnackbarHostState): (suspend Clipboa
     val copied = stringResource(Res.string.copied)
     return { copyTo ->
         scope.launch {
-            clipboard.copyTo(label)
-            if (!systemConfirmsCopy) snackbarHostState.showSnackbar(copied)
+            val done = runCatching { clipboard.copyTo(label) }.isSuccess
+            if (done && !systemConfirmsCopy) snackbarHostState.showSnackbar(copied)
         }
     }
 }

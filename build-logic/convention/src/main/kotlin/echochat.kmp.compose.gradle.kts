@@ -9,6 +9,12 @@ plugins {
 val libs = the<VersionCatalogsExtension>().named("libs")
 
 kotlin {
+    // UI tests in a browser need Skia's web runtime, which Compose bundles only into an
+    // executable, so each Compose module builds one for its tests (CMP-4906).
+    wasmJs {
+        binaries.executable()
+    }
+
     sourceSets {
         commonMain.dependencies {
             implementation(libs.findLibrary("compose-runtime").get())

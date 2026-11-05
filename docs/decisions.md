@@ -18,6 +18,7 @@ The original's modules, each now multiplatform, plus one shared app module and a
 | `androidApp` | `Application`, `MainActivity`. Android only. |
 | `desktopApp` | `main()` and the window. JVM only. |
 | `iosApp` | The Xcode project, its Swift entry point and the iOS end-to-end test. Built on the Mac (D12). |
+| `webApp` | `main()`, the web page and the browser's Back button. Web only. Added in slice 7 (D37). |
 | `shared` | `EchoChatApp()`: the theme, the Navigation 3 back stack and the Koin start-up. iOS gets it as one framework, `Shared`. |
 | `feature:chat` | Chat screen, photo viewer, `ChatViewModel` |
 | `core:model` | `Message`, `Author`, `Image`. No dependencies. |
@@ -28,7 +29,7 @@ The original's modules, each now multiplatform, plus one shared app module and a
 | `core:notifications` | `Notifier`, the shared rules, and each platform's notifications. Added in slice 4 (D22). |
 | `core:testing` | Fakes shared by the modules' tests |
 
-Convention plugins in `build-logic` hold the shared setup: `echochat.kmp.library`, `echochat.kmp.compose`, `echochat.kmp.feature`, and one each for the Android and desktop apps.
+Convention plugins in `build-logic` hold the shared setup: `echochat.kmp.library`, `echochat.kmp.compose`, `echochat.kmp.feature`, one each for the Android, desktop and web apps, and `echochat.web.tools` for Kotlin's web tools (D38).
 
 ## D4: AGP 9 puts the Android app in its own module (2026-11-03)
 AGP 9 doesn't let the multiplatform plugin share a module with `com.android.application`. Shared modules use `com.android.kotlin.multiplatform.library`, which is configured in an `android {}` block inside `kotlin {}`. `androidApp` is a plain Android app that depends on `shared`. Its application id is `com.echochat.kmp`, so it installs next to the original app.
@@ -232,3 +233,36 @@ Preparing slice 7, the web. FileKit opens a file by its path, and has a cache fo
 - **The camera.** When Android ends the app with the camera open, all the ViewModel needs afterwards is the `Image` it attaches. So it now saves only that, not the file's path as well.
 - **A bug this found: copying a photo on iOS copied nothing.** The store names its files with FileKit's `absolutePath()`, which on iOS is a `file://` URL. The iOS copy read the picture from that string as if it were a plain path. Its test used a plain path, so it passed anyway. The test now goes through the store, as the app does, and the copy uses FileKit's `path`.
 - **The iOS end-to-end test's timing.** After Save, the test waited up to 5 s for iOS's permission question before looking for "Saved to Photos". Once permission has been given, iOS doesn't ask again, and the 4-second message was gone by the time the test looked. It passed before only because those runs started from a fresh install. It now watches for both at once.
+
+## D35: The web, through Kotlin/Wasm, in desktop browsers (2026-11-05)
+Chosen in review, so anyone can try the app without installing anything.
+- **Kotlin/Wasm** compiles the shared Kotlin to WebAssembly, and Compose draws the same screens on the page. JetBrains rates it Beta, where Android, desktop and iOS are Stable. Every library the app uses already publishes a web build at the versions in use (D9).
+- **Desktop browsers only:** Chrome and Edge 119, Firefox 120 and Safari 18.2 or later, the first versions with the garbage collection Kotlin/Wasm needs. Phones keep the Android and iOS apps, because Compose's handling of on-screen keyboards in phone browsers is weak.
+- **No Kotlin/JS fallback** for older browsers. It would mean building everything a second time for few users, so an older browser gets a message instead (WEB-02).
+- **The browser's Back button** works as the app's Back, since Compose leaves it unconnected. Left alone, it would leave the page from the photo viewer, and the chat, kept only in memory, would be lost.
+
+## D36: Published to GitHub Pages on every push (2026-11-05)
+Chosen in review. A GitHub Actions workflow runs on every push to `main`. It runs the shared tests on the JVM and in headless Chrome on a Linux runner, and only if they pass does it build the web app and publish it to GitHub Pages at https://memorex386.github.io/echo-chat-kmp/. The iOS tests stay on the Mac, because a macOS runner would take much longer. The README links to the page.
+- **The wrapper.** `gradlew` is now marked executable in git, which a Linux runner needs.
+- **Caching.** GitHub Pages lets browsers keep its files for 10 minutes, so for a few minutes after a publish, someone coming back may still get the old version.
+
+## D37: How the web version works (2026-11-05)
+- **`webApp`** is a thin launcher, like `desktopApp`. It starts Koin and shows `EchoChatApp()` on the page with Compose's `ComposeViewport`. The page checks for WebAssembly's garbage collection before it loads anything, and shows WEB-02's message if it's missing. It also turns off the browser's own right-click menu: the app has its own, and the browser's would take the focus and close it.
+- **Photos** are kept in memory by `MemoryImageStore` (D34). Each is the file the browser picked, under a key of its own. Save has the browser download it, named "Echo Chat" and the time, and says nothing when it works, because the browser shows the download.
+- **Copying a photo** converts it to a PNG with Skia first. Browsers let a page copy PNGs and no other kind of picture.
+- **A refused copy.** A browser can refuse a copy, for a page without focus, for example. When I checked by hand, the refusal escaped uncaught and stopped the whole app. The copy now catches it, on every platform, and says nothing rather than "Copied".
+- **Notifications** use the browser's Notification API, behind a small `WebNotifications` interface so tests can stand in for the browser. Each reply gets its own, as on Windows, and unlike Windows the page closes them when the chat shows. Clicking one brings the tab forward and asks for the chat. The app asks for permission on the first send, which is a click, as Firefox and Safari require.
+- **On screen** (D23) carries over. Compose's web window pauses its lifecycle when the window loses focus, and stops it when the tab is hidden, so the chat counts as away in both cases.
+- **Back.** Compose already makes Esc the app's Back on the web. The browser's Back button isn't connected, so `BrowserBackInput` adds a history entry while anything in the app can go back, and turns the browser's Back into the app's (D35).
+- **Enter sends** on desktop and the web alike. That code moved to `nonMobileMain`, a source set shared by the two, with the missing camera and status bar.
+- **Size.** The release build is about 13 MB before compression, 8.6 MB of it Compose's drawing engine.
+
+## D38: Testing in a browser (2026-11-05)
+- **Headless Chrome.** Every module's `commonTest` also runs in headless Chrome, through Karma, as part of `allTests`. Getting there took five fixes:
+  - **Download sites.** Kotlin downloads Node.js, Yarn and Binaryen for the web, and adds their sites to each project, which `settings.gradle.kts` forbids. The settings list them instead, and `echochat.web.tools` tells Kotlin not to.
+  - **An executable per Compose module.** Compose bundles its drawing engine for browser tests only into an executable, so each Compose module builds one (CMP-4906).
+  - **Strings.** In a browser, Compose fetches each string the first time it's shown, and the UI tests don't wait for that, so they found no text. `loadStrings()` loads a module's strings before a test shows its screen, and a string that's already loaded shows straight away. The chat feature's `Res` class is public for this, so the tests in `shared` and `webApp` can load its strings.
+  - **Serving the strings.** Karma serves the test page but not the files next to it. A shared setting in `gradle/karma.config.d` serves `composeResources`, as Compose's own resources library does.
+  - **One browser at a time.** Several modules testing in headless Chrome at once starved each other until Karma gave up. So browser tests take turns, while the rest of the build stays parallel, and Karma waits 2 minutes rather than 30 seconds.
+- **Web-only tests** stand in for the browser where a test can't drive it: notifications and history sit behind small interfaces, and test photos are empty browser files.
+- **By hand.** The browser pane in the Claude app runs Chromium but blocks notifications and the clipboard. So a stand-in for the Notification API checked the app's side of notifications, and a stand-in file picker supplied a photo. Firefox was checked with Playwright's Firefox, headless, which used the real file picker and accepted a real copy. WebKit was checked in Safari on the iOS simulator. Desktop Safari wasn't checked.

@@ -4,4 +4,4 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.ClipEntry
 
 @OptIn(ExperimentalComposeUiApi::class)
-actual fun ClipEntry.plainText(): String? = getPlainText()
+actual suspend fun ClipEntry.plainText(): String? = getPlainText()

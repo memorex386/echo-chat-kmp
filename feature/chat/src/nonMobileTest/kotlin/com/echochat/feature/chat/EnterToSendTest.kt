@@ -15,16 +15,20 @@ import androidx.compose.ui.test.withKeyDown
 import com.echochat.core.designsystem.theme.EchoChatTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import com.echochat.core.testing.loadStrings
+import com.echochat.feature.chat.resources.Res
+import com.echochat.feature.chat.resources.allStringResources
 
-// Desktop only: phones keep their keyboard's own Send key.
+// Desktop and the web: phones keep their keyboard's own Send key.
 @OptIn(ExperimentalTestApi::class)
 class EnterToSendTest {
 
     private var typed by mutableStateOf("")
     private var sent = 0
 
-    private fun ComposeUiTest.showChat(draft: String) {
+    private suspend fun ComposeUiTest.showChat(draft: String) {
         typed = draft
+        loadStrings(Res.allStringResources)
         setContent {
             EchoChatTheme {
                 ChatScreen(

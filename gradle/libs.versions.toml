@@ -22,6 +22,7 @@ robolectric = "4.17"
 androidxTestCore = "1.7.0"
 coroutines = "1.11.0"
 serialization = "1.12.0"
+kotlinxBrowser = "0.5.0"
 androidxTestRunner = "1.7.0"
 androidxTestExtJunit = "1.3.0"
 
@@ -50,6 +51,8 @@ atomicfu = { group = "org.jetbrains.kotlinx", name = "atomicfu", version.ref = "
 koin-compose-viewmodel = { group = "io.insert-koin", name = "koin-compose-viewmodel", version.ref = "koin" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-swing = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-swing", version.ref = "coroutines" }
+# The browser's own APIs for Kotlin/Wasm: notifications, history, clipboard bytes.
+kotlinx-browser = { group = "org.jetbrains.kotlinx", name = "kotlinx-browser", version.ref = "kotlinxBrowser" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-core", version.ref = "serialization" }
 

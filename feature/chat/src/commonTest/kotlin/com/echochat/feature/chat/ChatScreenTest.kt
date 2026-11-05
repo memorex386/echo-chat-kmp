@@ -60,6 +60,9 @@ import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import com.echochat.core.testing.loadStrings
+import com.echochat.feature.chat.resources.Res
+import com.echochat.feature.chat.resources.allStringResources
 
 // Runs on the desktop JVM here, and on the iOS simulator on a Mac.
 @OptIn(ExperimentalTestApi::class)
@@ -71,7 +74,7 @@ class ChatScreenTest {
     private val sunset = Image("/cache/images/sunset.jpg")
 
     // The chat is shown in a phone-sized frame, since a desktop test window is wider than tall.
-    private fun ComposeUiTest.showChat(
+    private suspend fun ComposeUiTest.showChat(
         draft: String = "",
         attachment: Image? = null,
         canSend: Boolean = false,
@@ -84,6 +87,7 @@ class ChatScreenTest {
         screen: DpSize = Portrait,
     ) {
         typed = draft
+        loadStrings(Res.allStringResources)
         setContent {
             EchoChatTheme {
                 Box(Modifier.size(screen).testTag(ScreenTag)) {
@@ -107,8 +111,9 @@ class ChatScreenTest {
     }
 
     /** A rotation saves the screen's state and rebuilds it from that, shorter. */
-    private fun ComposeUiTest.showRotatableChat(): Rotation {
+    private suspend fun ComposeUiTest.showRotatableChat(): Rotation {
         val rotation = Rotation(this)
+        loadStrings(Res.allStringResources)
         setContent {
             rotation.Screen {
                 EchoChatTheme {
@@ -501,6 +506,7 @@ class ChatScreenTest {
         val owner = object : NavigationEventDispatcherOwner {
             override val navigationEventDispatcher = dispatcher
         }
+        loadStrings(Res.allStringResources)
         setContent {
             CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides owner) {
                 EchoChatTheme { ChatScreen(uiState, "", null, false, {}, {}, {}, {}, {}, {}) }

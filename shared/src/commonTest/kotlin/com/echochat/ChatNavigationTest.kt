@@ -30,6 +30,10 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import androidx.compose.ui.test.ComposeUiTest
+import com.echochat.core.testing.loadStrings
+import com.echochat.feature.chat.resources.Res
+import com.echochat.feature.chat.resources.allStringResources
 
 // The whole app, with fakes behind the chat screen's ViewModel.
 @OptIn(ExperimentalTestApi::class, ExperimentalCoroutinesApi::class)
@@ -66,7 +70,7 @@ class ChatNavigationTest {
 
     @Test
     fun `PHOTO-05 tapping a photo opens it full screen and Back returns to the chat`() = runComposeUiTest {
-        setContent { AppTestHost { EchoChatApp() } }
+        showApp()
 
         onNodeWithContentDescription("Open photo from you").performClick()
         onNodeWithContentDescription("Photo from you").assertIsDisplayed()
@@ -79,7 +83,7 @@ class ChatNavigationTest {
 
     @Test
     fun `NOTIFY-02 the chat tells the notifier when it is on screen and when the photo viewer covers it`() = runComposeUiTest {
-        setContent { AppTestHost { EchoChatApp() } }
+        showApp()
         waitForIdle()
         assertTrue(notifier.chatShown, "The chat should be on screen")
 
@@ -94,7 +98,7 @@ class ChatNavigationTest {
 
     @Test
     fun `NOTIFY-04 asking for the chat closes the photo viewer`() = runComposeUiTest {
-        setContent { AppTestHost { EchoChatApp() } }
+        showApp()
         onNodeWithContentDescription("Open photo from you").performClick()
         onNodeWithContentDescription("Photo from you").assertIsDisplayed()
 
@@ -102,5 +106,10 @@ class ChatNavigationTest {
 
         onNodeWithText("Sunset").assertIsDisplayed()
         onNodeWithContentDescription("Photo from you").assertDoesNotExist()
+    }
+
+    private suspend fun ComposeUiTest.showApp() {
+        loadStrings(Res.allStringResources)
+        setContent { AppTestHost { EchoChatApp() } }
     }
 }

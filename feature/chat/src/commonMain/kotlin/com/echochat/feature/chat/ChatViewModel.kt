@@ -119,6 +119,14 @@ class ChatViewModel(
         }
     }
 
+    /** Has the browser download a copy of the message's photo. The browser shows the download itself, so only a failure is mentioned. */
+    fun downloadPhoto(message: Message) {
+        val image = message.image ?: return
+        viewModelScope.launch {
+            if (!imageStore.saveToPhotos(image)) pendingEvents.send(ChatEvent.PhotoNotSaved)
+        }
+    }
+
     /** Saves a copy of the message's photo where a Save dialog chose. That choice is confirmation enough, so only a failure is mentioned. */
     fun savePhotoAs(message: Message, destination: PlatformFile) {
         val image = message.image ?: return

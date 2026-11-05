@@ -4,10 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import com.echochat.core.testing.TestChatRepository
 import com.echochat.core.testing.TestChatRepository.Sent
 import com.echochat.core.testing.TestImageStore
+import com.echochat.core.testing.testPhotoFile
 import com.echochat.core.testing.TestNotifier
 import com.echochat.core.model.Author
 import com.echochat.core.model.Message
-import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
@@ -30,7 +30,7 @@ class ChatViewModelTest {
 
     private val chatRepository = TestChatRepository()
     private val savedState = SavedStateHandle()
-    private val pickedPhoto = PlatformFile("/picker/1.jpg")
+    private val pickedPhoto = testPhotoFile("/picker/1.jpg")
     private val imageStore = TestImageStore()
     private lateinit var viewModel: ChatViewModel
 
@@ -86,7 +86,7 @@ class ChatViewModelTest {
     fun `ACTION-04 saving a photo where a Save dialog chose says only when it couldn't`() = runTest {
         val events = collectEvents()
         val photo = Message(8, Author.Echo, "", TestImageStore.Imported)
-        val chosen = PlatformFile("/Pictures/sunset.jpg")
+        val chosen = testPhotoFile("/Pictures/sunset.jpg")
 
         viewModel.savePhotoAs(photo, chosen)
         assertEquals(listOf(TestImageStore.Imported), imageStore.saved)
@@ -94,6 +94,21 @@ class ChatViewModelTest {
 
         imageStore.saveWorks = false
         viewModel.savePhotoAs(photo, chosen)
+        assertEquals(listOf<ChatEvent>(ChatEvent.PhotoNotSaved), events)
+    }
+
+    // A browser's download: the browser shows it, so only a failure is mentioned.
+    @Test
+    fun `ACTION-04 downloading a photo in a browser says only when it couldn't`() = runTest {
+        val events = collectEvents()
+        val photo = Message(8, Author.Echo, "", TestImageStore.Imported)
+
+        viewModel.downloadPhoto(photo)
+        assertEquals(listOf(TestImageStore.Imported), imageStore.saved)
+        assertEquals(emptyList(), events)
+
+        imageStore.saveWorks = false
+        viewModel.downloadPhoto(photo)
         assertEquals(listOf<ChatEvent>(ChatEvent.PhotoNotSaved), events)
     }
 

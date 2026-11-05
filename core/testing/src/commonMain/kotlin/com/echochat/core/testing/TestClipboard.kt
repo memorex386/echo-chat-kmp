@@ -1,5 +1,6 @@
 package com.echochat.core.testing
 
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.NativeClipboard
@@ -8,12 +9,18 @@ import androidx.compose.ui.platform.NativeClipboard
  * Keeps what the app copies, instead of putting it on the system clipboard. [native] stands in
  * for the platform's own clipboard, for code that writes to it directly.
  */
+// The web's NativeClipboard is the browser's clipboard, which Compose marks experimental.
+@OptIn(ExperimentalComposeUiApi::class)
 class TestClipboard(private val native: NativeClipboard? = null) : Clipboard {
     var entry: ClipEntry? = null
+
+    /** Refuses every copy, as a browser can. */
+    var refuses = false
 
     override suspend fun getClipEntry(): ClipEntry? = entry
 
     override suspend fun setClipEntry(clipEntry: ClipEntry?) {
+        check(!refuses) { "The system refused the copy" }
         entry = clipEntry
     }
 
@@ -22,5 +29,5 @@ class TestClipboard(private val native: NativeClipboard? = null) : Clipboard {
         get() = native ?: error("This test clipboard has no platform clipboard behind it")
 }
 
-/** The text in a clip, read the way each platform keeps it. */
-expect fun ClipEntry.plainText(): String?
+/** The text in a clip, read the way each platform keeps it. A browser hands it over later, so this waits. */
+expect suspend fun ClipEntry.plainText(): String?
