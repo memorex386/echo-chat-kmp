@@ -61,12 +61,16 @@ final class ChatEndToEndUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Save"].waitForExistence(timeout: 3))
         keepScreenshot(of: app, named: "photo-menu")
         app.staticTexts["Save"].tap()
+        // iOS asks only until it's allowed. After that the save is instant, and "Saved to Photos"
+        // shows for about 4 s, so watch for both at once rather than waiting out the question first.
         let allowPhotos = springboard.alerts.buttons["Allow"]
-        if allowPhotos.waitForExistence(timeout: 5) {
+        let saved = app.staticTexts["Saved to Photos"]
+        XCTAssertTrue(eventually(timeout: 8) { allowPhotos.exists || saved.exists })
+        if allowPhotos.exists {
             keepScreenshot(of: springboard, named: "photos-permission")
             allowPhotos.tap()
+            XCTAssertTrue(saved.waitForExistence(timeout: 5))
         }
-        XCTAssertTrue(app.staticTexts["Saved to Photos"].waitForExistence(timeout: 5))
         keepScreenshot(of: app, named: "photo-saved")
     }
 

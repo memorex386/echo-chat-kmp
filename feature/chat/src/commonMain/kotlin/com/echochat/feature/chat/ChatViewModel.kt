@@ -4,14 +4,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.echochat.core.data.CameraShot
 import com.echochat.core.data.ChatRepository
 import com.echochat.core.data.ImageStore
 import com.echochat.core.model.Image
 import com.echochat.core.model.Message
 import com.echochat.core.notifications.Notifier
 import io.github.vinceglb.filekit.PlatformFile
-import io.github.vinceglb.filekit.absolutePath
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -54,14 +52,11 @@ class ChatViewModel(
     val canSend: Boolean
         get() = draft.isNotBlank() || attachment != null
 
-    // Android often ends the app while the camera app is open, so the shot in progress is saved too.
-    private var cameraShot: CameraShot?
-        get() = savedState.get<String>(CameraFileKey)?.let { file ->
-            savedState.get<String>(CameraImageKey)?.let { image -> CameraShot(PlatformFile(file), Image(image)) }
-        }
+    // Android often ends the app while the camera app is open, so the photo in progress is saved too.
+    private var cameraImage: Image?
+        get() = savedState.get<String>(CameraImageKey)?.let(::Image)
         set(value) {
-            savedState[CameraFileKey] = value?.file?.absolutePath()
-            savedState[CameraImageKey] = value?.image?.path
+            savedState[CameraImageKey] = value?.path
         }
 
     fun onDraftChange(text: String) {
@@ -77,12 +72,15 @@ class ChatViewModel(
     }
 
     /** Returns where the camera app should save the next photo. */
-    fun startCamera(): PlatformFile = imageStore.newCameraShot().also { cameraShot = it }.file
+    fun startCamera(): PlatformFile = imageStore.newCameraShot().also { cameraImage = it.image }.file
 
     fun onCameraResult(saved: Boolean) {
-        if (saved) attachment = cameraShot?.image
-        cameraShot = null
+        if (saved) attachment = cameraImage
+        cameraImage = null
     }
+
+    /** The file that holds [image], for copying it. */
+    fun photoFile(image: Image): PlatformFile = imageStore.fileFor(image)
 
     fun removeAttachment() {
         attachment = null
@@ -133,5 +131,4 @@ class ChatViewModel(
 // Only plain strings are saved, which every platform can keep.
 private const val DraftKey = "draft"
 private const val AttachmentKey = "attachment"
-private const val CameraFileKey = "camera.file"
 private const val CameraImageKey = "camera.image"

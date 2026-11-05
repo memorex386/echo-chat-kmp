@@ -16,7 +16,13 @@ interface ImageStore {
 
     /** Saves a copy of [image] at [destination], a file chosen in a Save dialog. Returns whether it worked. */
     suspend fun saveCopy(image: Image, destination: PlatformFile): Boolean
+
+    /** The file that holds [image], for showing or copying it. */
+    fun fileFor(image: Image): PlatformFile
 }
+
+/** This platform's own store. */
+internal expect fun platformImageStore(): ImageStore
 
 /** Where the camera app writes the photo ([file]), and how the chat then shows it ([image]). */
 data class CameraShot(

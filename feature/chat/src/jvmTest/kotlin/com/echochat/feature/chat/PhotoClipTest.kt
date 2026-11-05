@@ -2,6 +2,7 @@ package com.echochat.feature.chat
 
 import androidx.compose.ui.ExperimentalComposeUiApi
 import com.echochat.core.testing.TestClipboard
+import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.test.runTest
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.Transferable
@@ -22,7 +23,7 @@ class PhotoClipTest {
         ImageIO.write(BufferedImage(40, 30, BufferedImage.TYPE_INT_RGB), "png", photo)
         val clipboard = TestClipboard()
 
-        clipboard.copyPhoto(photo.path, "Message from Echo Chat")
+        clipboard.copyPhoto(PlatformFile(photo), "Message from Echo Chat")
 
         val copied = assertNotNull(clipboard.entry, "Nothing was copied").nativeClipEntry as Transferable
         val pasted = copied.getTransferData(DataFlavor.imageFlavor) as AwtImage

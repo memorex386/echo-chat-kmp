@@ -12,7 +12,9 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
+import coil3.map.Mapper
 import coil3.request.crossfade
+import com.echochat.core.data.ImageStore
 import com.echochat.core.designsystem.theme.EchoChatTheme
 import com.echochat.core.model.Image
 import com.echochat.core.notifications.ChatRequests
@@ -21,6 +23,7 @@ import com.echochat.feature.chat.PhotoViewerScreen
 import com.echochat.feature.chat.navigation.ChatKey
 import com.echochat.feature.chat.navigation.PhotoKey
 import com.echochat.feature.chat.navigation.chatNavKeys
+import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.coil.addPlatformFileSupport
 import org.koin.compose.koinInject
 
@@ -34,11 +37,16 @@ private val navKeys = SavedStateConfiguration {
  */
 @Composable
 fun EchoChatApp(onChatRequested: () -> Unit = {}) {
-    // Coil loads photos as FileKit files, so one kind of path works on every platform, Windows
+    // The screens hand Coil a message's Image, and the photo store says which file holds it.
+    // Coil then loads it as a FileKit file, which works on every platform, Windows paths
     // included. Photos fade in as they load.
+    val imageStore = koinInject<ImageStore>()
     setSingletonImageLoaderFactory { context ->
         ImageLoader.Builder(context)
-            .components { addPlatformFileSupport() }
+            .components {
+                add(Mapper<Image, PlatformFile> { image, _ -> imageStore.fileFor(image) })
+                addPlatformFileSupport()
+            }
             .crossfade(true)
             .build()
     }

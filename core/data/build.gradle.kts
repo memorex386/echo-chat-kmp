@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
+
 plugins {
     id("echochat.kmp.library")
 }
@@ -5,6 +8,20 @@ plugins {
 kotlin {
     android {
         namespace = "com.echochat.core.data"
+    }
+
+    // Adds nonWebMain, shared by every platform but the web, for the photo store: FileKit's
+    // files by path and its cache folder don't exist in a browser.
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    applyDefaultHierarchyTemplate {
+        common {
+            group("nonWeb") {
+                withCompilations { it.target.platformType == KotlinPlatformType.androidJvm }
+                withJvm()
+                // The whole ios group, not just its targets, so code in iosMain sees nonWebMain.
+                group("ios") { withIos() }
+            }
+        }
     }
 
     sourceSets {

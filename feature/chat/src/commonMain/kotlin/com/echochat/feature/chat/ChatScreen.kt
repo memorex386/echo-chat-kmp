@@ -148,7 +148,6 @@ import com.echochat.feature.chat.resources.undo
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import kotlinx.coroutines.flow.filter
@@ -218,7 +217,7 @@ fun ChatRoute(
         onAction = { action ->
             when (action) {
                 is MessageAction.CopyText -> copy { label -> copyText(action.message.text, label) }
-                is MessageAction.CopyPhoto -> action.message.image?.let { image -> copy { label -> copyPhoto(image.path, label) } }
+                is MessageAction.CopyPhoto -> action.message.image?.let { image -> copy { label -> copyPhoto(viewModel.photoFile(image), label) } }
                 is MessageAction.SavePhoto -> savePhoto?.invoke(action.message)
                 is MessageAction.Delete -> viewModel.delete(action.message)
             }
@@ -527,7 +526,7 @@ private fun Photo(
         if (message.author == Author.Me) Res.string.open_photo_from_you else Res.string.open_photo_from_echo,
     )
     AsyncImage(
-        model = PlatformFile(image.path),
+        model = image,
         contentDescription = openLabel,
         contentScale = ContentScale.Crop,
         modifier = Modifier
@@ -805,7 +804,7 @@ private fun AttachmentPreview(
 ) {
     Box(modifier.size(76.dp)) {
         AsyncImage(
-            model = PlatformFile(attachment.path),
+            model = attachment,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier

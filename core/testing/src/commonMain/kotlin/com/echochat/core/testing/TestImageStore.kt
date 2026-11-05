@@ -25,6 +25,8 @@ class TestImageStore : ImageStore {
         return saveWorks
     }
 
+    override fun fileFor(image: Image) = PlatformFile(image.path)
+
     companion object {
         val Imported = Image("/cache/images/imported.jpg")
         val Shot = CameraShot(

@@ -12,9 +12,12 @@ import io.github.vinceglb.filekit.extension
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
+internal actual fun platformImageStore(): ImageStore = CacheImageStore()
+
 /**
  * Keeps pictures in the app's cache folder. On Android and iOS that folder is private to
- * the app; on desktop it is in the user's own app-data folder.
+ * the app; on desktop it is in the user's own app-data folder. A web page has no folders,
+ * so this serves every platform but the web.
  */
 class CacheImageStore : ImageStore {
 
@@ -35,7 +38,9 @@ class CacheImageStore : ImageStore {
             .getOrDefault(false)
 
     override suspend fun saveCopy(image: Image, destination: PlatformFile): Boolean =
-        runCatching { PlatformFile(image.path) copyTo destination }.isSuccess
+        runCatching { fileFor(image) copyTo destination }.isSuccess
+
+    override fun fileFor(image: Image): PlatformFile = PlatformFile(image.path)
 
     // A real extension lets other apps tell the picture's type when it is copied or saved.
     private fun newFile(extension: String): PlatformFile {

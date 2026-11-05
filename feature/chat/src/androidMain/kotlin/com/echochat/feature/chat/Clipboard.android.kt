@@ -8,6 +8,8 @@ import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.toClipEntry
 import androidx.core.content.FileProvider
 import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.PlatformFile
+import io.github.vinceglb.filekit.absolutePath
 import io.github.vinceglb.filekit.context
 import java.io.File
 
@@ -15,9 +17,9 @@ internal actual suspend fun Clipboard.copyText(text: String, label: String) =
     setClipEntry(ClipData.newPlainText(label, text).toClipEntry())
 
 // A content link, as the original did: Android lets the app that pastes it read the photo.
-internal actual suspend fun Clipboard.copyPhoto(path: String, label: String) {
+internal actual suspend fun Clipboard.copyPhoto(photo: PlatformFile, label: String) {
     val context = FileKit.context
-    setClipEntry(ClipData.newUri(context.contentResolver, label, sharedPhotoUri(context, path)).toClipEntry())
+    setClipEntry(ClipData.newUri(context.contentResolver, label, sharedPhotoUri(context, photo.absolutePath())).toClipEntry())
 }
 
 // Android 13 and later show their own "Copied".

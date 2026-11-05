@@ -3,6 +3,7 @@ package com.echochat.feature.chat
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.Clipboard
+import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.awt.datatransfer.DataFlavor
@@ -18,8 +19,8 @@ internal actual suspend fun Clipboard.copyText(text: String, label: String) =
     setClipEntry(ClipEntry(StringSelection(text)))
 
 @OptIn(ExperimentalComposeUiApi::class)
-internal actual suspend fun Clipboard.copyPhoto(path: String, label: String) {
-    val file = File(path)
+internal actual suspend fun Clipboard.copyPhoto(photo: PlatformFile, label: String) {
+    val file = photo.file
     val picture = withContext(Dispatchers.IO) { ImageIO.read(file) }
     setClipEntry(ClipEntry(PhotoTransferable(picture, file)))
 }

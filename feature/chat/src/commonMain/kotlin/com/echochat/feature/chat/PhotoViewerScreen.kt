@@ -26,7 +26,6 @@ import com.echochat.feature.chat.resources.photo
 import com.echochat.feature.chat.resources.photo_from_echo
 import com.echochat.feature.chat.resources.photo_from_you
 import com.echochat.feature.chat.resources.you
-import io.github.vinceglb.filekit.PlatformFile
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import com.echochat.core.designsystem.resources.Res as DesignRes
@@ -68,7 +67,7 @@ fun PhotoViewerScreen(
         modifier = modifier,
     ) { padding ->
         AsyncImage(
-            model = PlatformFile(image.path),
+            model = image,
             contentDescription = stringResource(if (fromMe) Res.string.photo_from_you else Res.string.photo_from_echo),
             contentScale = ContentScale.Fit,
             modifier = Modifier
