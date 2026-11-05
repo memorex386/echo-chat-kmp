@@ -245,6 +245,7 @@ Chosen in review, so anyone can try the app without installing anything.
 Chosen in review. A GitHub Actions workflow runs on every push to `main`. It runs the shared tests on the JVM and in headless Chrome on a Linux runner, and only if they pass does it build the web app and publish it to GitHub Pages at https://memorex386.github.io/echo-chat-kmp/. The iOS tests stay on the Mac, because a macOS runner would take much longer. The README links to the page.
 - **The wrapper.** `gradlew` is now marked executable in git, which a Linux runner needs.
 - **Caching.** GitHub Pages lets browsers keep its files for 10 minutes, so for a few minutes after a publish, someone coming back may still get the old version.
+- **A longer wait.** The first publish stalled three times at the action's 10-minute limit, with the tests and build passing each time, a problem others report too (deploy-pages issue #406). So the publish step waits up to 20 minutes.
 
 ## D37: How the web version works (2026-11-05)
 - **`webApp`** is a thin launcher, like `desktopApp`. It starts Koin and shows `EchoChatApp()` on the page with Compose's `ComposeViewport`. The page checks for WebAssembly's garbage collection before it loads anything, and shows WEB-02's message if it's missing. It also turns off the browser's own right-click menu: the app has its own, and the browser's would take the focus and close it.
