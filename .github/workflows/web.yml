@@ -24,6 +24,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Test on the JVM and in headless Chrome, then build the web app
         run: ./gradlew jvmTest wasmJsBrowserTest :webApp:wasmJsBrowserDistribution
+      # The run's log names a failed test but not why. Its report and result files have the error.
+      - name: Keep the test reports when a test fails
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            **/build/reports/tests/
+            **/build/test-results/
+          retention-days: 14
       - uses: actions/upload-pages-artifact@v5
         with:
           path: webApp/build/dist/wasmJs/productionExecutable

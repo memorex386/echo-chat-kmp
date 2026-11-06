@@ -10,5 +10,9 @@ import org.jetbrains.compose.resources.getString
  * load at once anyway, and this changes nothing.
  */
 suspend fun loadStrings(strings: Map<String, StringResource>) {
+    fetchResourcesWhereTestsServeThem()
     strings.values.forEach { getString(it) }
 }
+
+/** In a browser test, points Compose's resource fetches at where the test server keeps the files. */
+internal expect fun fetchResourcesWhereTestsServeThem()
