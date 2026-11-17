@@ -17,9 +17,9 @@ sealed interface MessageAction {
 
 /** Things the chat tells me about once, in a snackbar. */
 sealed interface ChatEvent {
-    data class Deleted(val message: Message) : ChatEvent
-
     data object PhotoSaved : ChatEvent
 
     data object PhotoNotSaved : ChatEvent
+
+    data object PhotoNotAttached : ChatEvent
 }

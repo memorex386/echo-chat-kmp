@@ -1,6 +1,8 @@
 package com.echochat.feature.chat
 
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,10 +12,13 @@ import com.echochat.core.model.Image
 import com.echochat.core.model.Message
 import com.echochat.core.notifications.Notifier
 import io.github.vinceglb.filekit.PlatformFile
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -49,8 +54,11 @@ class ChatViewModel(
             savedState[AttachmentKey] = value?.path
         }
 
+    // While a picked photo is being copied in, Send waits, so the photo goes with this message.
+    private var importing by mutableStateOf(false)
+
     val canSend: Boolean
-        get() = draft.isNotBlank() || attachment != null
+        get() = (draft.isNotBlank() || attachment != null) && !importing
 
     // Android often ends the app while the camera app is open, so the photo in progress is saved too.
     private var cameraImage: Image?
@@ -68,7 +76,19 @@ class ChatViewModel(
     fun onChatHidden() = notifier.onChatHidden()
 
     fun onPhotoPicked(photo: PlatformFile) {
-        viewModelScope.launch { attachment = imageStore.import(photo) }
+        importing = true
+        viewModelScope.launch {
+            try {
+                attachment = imageStore.import(photo)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // A cloud photo while offline, or a full disk. Left uncaught, it would end the app.
+                pendingEvents.send(ChatEvent.PhotoNotAttached)
+            } finally {
+                importing = false
+            }
+        }
     }
 
     /** Returns where the camera app should save the next photo. */
@@ -86,29 +106,44 @@ class ChatViewModel(
         attachment = null
     }
 
-    fun send() {
-        if (!canSend) return
+    /** Sends the draft and the attached photo. Returns whether there was anything to send. */
+    fun send(): Boolean {
+        if (!canSend) return false
         val text = draft
         val image = attachment
         draft = ""
         attachment = null
         viewModelScope.launch { chatRepository.send(text, image) }
+        return true
     }
 
     private val pendingEvents = Channel<ChatEvent>(Channel.BUFFERED)
 
-    /** Snackbars to show: a delete to undo, or whether a photo was saved. */
+    /** Snackbars to show once: whether a photo was saved, or that one couldn't be attached. */
     val events: Flow<ChatEvent> = pendingEvents.receiveAsFlow()
+
+    // State, not an event: a screen rebuilt before the offer ends, after a rotation or the photo
+    // viewer, shows it again.
+    private val pendingUndoState = MutableStateFlow<Message?>(null)
+
+    /** The deleted message the chat offers to bring back, until I take the offer or it runs out. */
+    val pendingUndo: StateFlow<Message?> = pendingUndoState.asStateFlow()
 
     fun delete(message: Message) {
         viewModelScope.launch {
             chatRepository.delete(message.id)
-            pendingEvents.send(ChatEvent.Deleted(message))
+            pendingUndoState.value = message
         }
     }
 
     fun undoDelete(message: Message) {
+        undoOfferEnded(message)
         viewModelScope.launch { chatRepository.undoDelete(message.id) }
+    }
+
+    /** The offer to bring back [message] is over. An offer for a later delete stays. */
+    fun undoOfferEnded(message: Message) {
+        pendingUndoState.compareAndSet(message, null)
     }
 
     /** Saves a copy of the message's photo to the phone's photos, and says whether it worked. */

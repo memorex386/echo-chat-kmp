@@ -13,10 +13,11 @@ internal actual suspend fun Clipboard.copyText(text: String, label: String) =
 
 // Compose's clip holds only text on iOS, so the picture goes on the pasteboard directly.
 // Compose 1.12 deprecates nativeClipboard for platform extensions, but has none for iOS yet.
-// FileKit's absolutePath() is a file:// URL on iOS; UIImage needs the plain path.
+// FileKit's absolutePath() is a file:// URL on iOS; UIImage needs the plain path. A photo that
+// can't be read as a picture fails like a refused copy, so the app doesn't say "Copied".
 @Suppress("DEPRECATION")
 internal actual suspend fun Clipboard.copyPhoto(photo: PlatformFile, label: String) {
-    nativeClipboard.image = UIImage.imageWithContentsOfFile(photo.path) ?: return
+    nativeClipboard.image = UIImage.imageWithContentsOfFile(photo.path) ?: error("Not a picture: ${photo.path}")
 }
 
 internal actual val systemConfirmsCopy: Boolean = false

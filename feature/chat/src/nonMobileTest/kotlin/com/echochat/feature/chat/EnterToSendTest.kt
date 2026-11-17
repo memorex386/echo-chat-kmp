@@ -77,4 +77,14 @@ class EnterToSendTest {
         assertEquals(0, sent)
         assertEquals("", typed)
     }
+
+    @Test
+    fun `KEY-05 the number pad's Enter sends too`() = runComposeUiTest {
+        showChat("Hello")
+
+        onNode(hasSetTextAction()).performKeyInput { pressKey(Key.NumPadEnter) }
+
+        assertEquals(1, sent)
+        assertEquals("Hello", typed)
+    }
 }

@@ -17,7 +17,9 @@ import org.khronos.webgl.toInt8Array
 import kotlin.js.Promise
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalWasmJsInterop::class)
 class PhotoClipTest {
@@ -39,6 +41,18 @@ class PhotoClipTest {
         val png = Int8Array(blobBytes(item.getType("image/png".toJsString()).await()).await()).toByteArray()
         val pasted = Image.makeFromEncoded(png)
         assertEquals(40 to 30, pasted.width to pasted.height)
+    }
+
+    // Copying it would otherwise count as done, and the app would say "Copied".
+    @Test
+    fun `ACTION-02 a photo that can't be read as a picture isn't copied`() = runTest {
+        val text = "Not a picture".encodeToByteArray()
+        val photo = PlatformFile(WebFile.FileWrapper(BrowserFile(listOf<JsAny?>(text.toInt8Array()).toJsArray(), "not-a-photo.jpg")))
+        val clipboard = TestClipboard()
+
+        assertFails { clipboard.copyPhoto(photo, "Message from Echo Chat") }
+
+        assertNull(clipboard.entry)
     }
 }
 

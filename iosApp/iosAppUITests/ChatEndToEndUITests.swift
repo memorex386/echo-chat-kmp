@@ -6,7 +6,7 @@ final class ChatEndToEndUITests: XCTestCase {
 
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
 
-    func testSendingHelloShowsTypingDotsThenTheEcho() {
+    func test_CHAT_04_sendingHelloShowsTypingDotsThenTheEcho() {
         let app = XCUIApplication()
         app.launch()
 
@@ -32,7 +32,7 @@ final class ChatEndToEndUITests: XCTestCase {
     }
 
     // Picks the newest photo in the simulator's library, which comes with sample photos.
-    func testAPhotoFromTheGalleryIsSentEchoedAndOpenedFullScreen() {
+    func test_PHOTO_05_aPhotoFromTheGalleryIsSentEchoedAndOpenedFullScreen() {
         let app = XCUIApplication()
         app.launch()
 
@@ -76,7 +76,7 @@ final class ChatEndToEndUITests: XCTestCase {
 
     // NOTIFY-01, -04 and -05 on iOS: a reply while the app is in the background notifies, and
     // tapping the notification brings the chat back.
-    func testAReplyWhileAwayNotifiesAndTappingItOpensTheChat() {
+    func test_NOTIFY_04_aReplyWhileAwayNotifiesAndTappingItOpensTheChat() {
         let app = XCUIApplication()
         app.launch()
 
@@ -100,7 +100,7 @@ final class ChatEndToEndUITests: XCTestCase {
 
     // KEY-01 to KEY-03 on iOS: the attach panel and the keyboard take turns, the swipe in from the
     // screen's edge closes the panel, and a rotation keeps the keyboard up.
-    func testTheAttachPanelAndTheKeyboardTakeTurns() {
+    func test_KEY_01_theAttachPanelAndTheKeyboardTakeTurns() {
         let app = XCUIApplication()
         app.launch()
         XCTAssertTrue(app.textViews["Message"].waitForExistence(timeout: 10))

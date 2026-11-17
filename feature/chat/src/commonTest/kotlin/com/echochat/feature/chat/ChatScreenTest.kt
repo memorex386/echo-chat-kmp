@@ -33,6 +33,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.performMouseInput
@@ -170,6 +171,16 @@ class ChatScreenTest {
     }
 
     @Test
+    fun `CHAT-02 the keyboard's Send key does nothing when there is nothing to send`() = runComposeUiTest {
+        var sent = false
+        showChat(draft = "   ", canSend = false, onSend = { sent = true })
+
+        onNode(hasSetTextAction()).performImeAction()
+
+        assertFalse(sent)
+    }
+
+    @Test
     fun `CHAT-02 Send is enabled when there is something to send`() = runComposeUiTest {
         var sent = false
         showChat(draft = "Hello", canSend = true, onSend = { sent = true })
@@ -301,6 +312,21 @@ class ChatScreenTest {
         uiState = uiState.copy(messages = uiState.messages + mine(41, "Message 41"), isReplying = true)
 
         onNodeWithText("Message 41").assertIsDisplayed()
+    }
+
+    // The newest message is still mine after the delete, and after the Undo, but neither is a new one.
+    @Test
+    fun `CHAT-14 deleting or restoring a message while I'm scrolled up leaves the list where it is`() = runComposeUiTest {
+        val all = (1L..40L).map { mine(it, "Message $it") }
+        uiState = ChatUiState(messages = all)
+        showChat()
+        onNode(hasScrollToIndexAction()).performScrollToIndex(0)
+
+        uiState = uiState.copy(messages = all - all.last())
+        onNodeWithText("Message 1").assertIsDisplayed()
+
+        uiState = uiState.copy(messages = all)
+        onNodeWithText("Message 1").assertIsDisplayed()
     }
 
     @Test

@@ -6,12 +6,14 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.echochat.core.data.ChatRepository
 import com.echochat.core.data.ImageStore
+import com.echochat.core.model.Image
 import com.echochat.core.notifications.Notifier
 import com.echochat.core.testing.TestClipboard
 import com.echochat.core.testing.TestImageStore
@@ -64,8 +66,8 @@ class MessageActionsTest {
     }
 
     // The in-memory store doesn't suspend, so the message is there when this returns.
-    private fun send(text: String) {
-        CoroutineScope(Dispatchers.Unconfined).launch { KoinPlatform.getKoin().get<ChatRepository>().send(text) }
+    private fun send(text: String, image: Image? = null) {
+        CoroutineScope(Dispatchers.Unconfined).launch { KoinPlatform.getKoin().get<ChatRepository>().send(text, image) }
     }
 
     private suspend fun ComposeUiTest.showApp() {
@@ -136,5 +138,39 @@ class MessageActionsTest {
 
         onNodeWithText("Message deleted").assertDoesNotExist()
         onNodeWithText("Oops").assertDoesNotExist()
+    }
+
+    // Opening a photo takes the chat off screen, as a rotation rebuilds it.
+    @Test
+    fun `ACTION-05 the offer to undo is there again after a photo is opened and closed`() = runComposeUiTest {
+        send("Sunset", TestImageStore.Imported)
+        send("Oops")
+        showApp()
+        onNodeWithText("Oops").performTouchInput { longClick() }
+        onNodeWithText("Delete").performClick()
+        onNodeWithText("Message deleted").assertIsDisplayed()
+
+        onNodeWithContentDescription("Open photo from you").performClick()
+        onNodeWithContentDescription("Back").performClick()
+
+        onNodeWithText("Undo").performClick()
+        onNodeWithText("Oops").assertIsDisplayed()
+    }
+
+    // The later messages keep the two to delete clear of the snackbar at the bottom.
+    @Test
+    fun `ACTION-05 a second delete replaces the offer so Undo brings back the message deleted last`() = runComposeUiTest {
+        listOf("One", "Two", "Three", "Four", "Five").forEach { send(it) }
+        showApp()
+
+        onNodeWithText("One").performTouchInput { longClick() }
+        onNodeWithText("Delete").performClick()
+        onNodeWithText("Two").performTouchInput { longClick() }
+        onNodeWithText("Delete").performClick()
+        onNodeWithText("Undo").performClick()
+
+        onNodeWithText("Two").assertIsDisplayed()
+        onNodeWithText("One").assertDoesNotExist()
+        onNodeWithText("Message deleted").assertDoesNotExist()
     }
 }

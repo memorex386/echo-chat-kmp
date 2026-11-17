@@ -28,6 +28,7 @@ import org.koin.dsl.module
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import androidx.compose.ui.test.ComposeUiTest
@@ -108,8 +109,21 @@ class ChatNavigationTest {
         onNodeWithContentDescription("Photo from you").assertDoesNotExist()
     }
 
-    private suspend fun ComposeUiTest.showApp() {
+    // On desktop this brings the window to the front, and in a browser the tab.
+    @Test
+    fun `NOTIFY-04 asking for the chat brings the app forward`() = runComposeUiTest {
+        var broughtForward = 0
+        showApp(onChatRequested = { broughtForward++ })
+        waitForIdle()
+
+        chatRequests.request()
+        waitForIdle()
+
+        assertEquals(1, broughtForward)
+    }
+
+    private suspend fun ComposeUiTest.showApp(onChatRequested: () -> Unit = {}) {
         loadStrings(Res.allStringResources)
-        setContent { AppTestHost { EchoChatApp() } }
+        setContent { AppTestHost { EchoChatApp(onChatRequested) } }
     }
 }
