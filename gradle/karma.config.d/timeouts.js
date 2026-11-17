@@ -5,3 +5,9 @@ config.set({
   browserNoActivityTimeout: 120000,
   browserDisconnectTimeout: 120000,
 });
+
+// Each test may take up to 15 seconds rather than Mocha's 2. On a busy CI runner, a UI test that
+// opens a photo took longer than 2 seconds (PHOTO-05). Set directly, as config.set would replace
+// the whole client section.
+config.client = config.client || {};
+config.client.mocha = Object.assign({}, config.client.mocha, { timeout: 15000 });
