@@ -7,19 +7,22 @@ import io.github.vinceglb.filekit.absolutePath
 import io.github.vinceglb.filekit.cacheDir
 import io.github.vinceglb.filekit.copyTo
 import io.github.vinceglb.filekit.createDirectories
+import io.github.vinceglb.filekit.delete
 import io.github.vinceglb.filekit.div
+import io.github.vinceglb.filekit.exists
 import io.github.vinceglb.filekit.extension
+import io.github.vinceglb.filekit.list
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 internal actual fun platformImageStore(): ImageStore = CacheImageStore()
 
 /**
- * Keeps pictures in the app's cache folder. On Android and iOS that folder is private to
- * the app; on desktop it is in the user's own app-data folder. A web page has no folders,
- * so this serves every platform but the web.
+ * Keeps pictures in [folder], by default in the app's cache folder. On Android and iOS that folder
+ * is private to the app; on desktop it is in the user's own app-data folder. A web page has no
+ * folders, so this serves every platform but the web.
  */
-class CacheImageStore : ImageStore {
+class CacheImageStore(private val folder: PlatformFile = FileKit.cacheDir / "images") : ImageStore {
 
     override suspend fun import(photo: PlatformFile): Image {
         val copy = newFile(photo.extension.ifEmpty { "jpg" })
@@ -42,11 +45,18 @@ class CacheImageStore : ImageStore {
 
     override fun fileFor(image: Image): PlatformFile = PlatformFile(image.path)
 
+    /**
+     * Deletes every photo in the store. Only for when nothing can still show them: as desktop and iOS
+     * start, since messages last only as long as the app and neither brings back a draft (PHOTO-08).
+     */
+    suspend fun clear() {
+        if (folder.exists()) folder.list().forEach { it.delete() }
+    }
+
     // A real extension lets other apps tell the picture's type when it is copied or saved.
     private fun newFile(extension: String): PlatformFile {
-        val directory = FileKit.cacheDir / "images"
-        directory.createDirectories()
-        return directory / "${Uuid.random()}.$extension"
+        folder.createDirectories()
+        return folder / "${Uuid.random()}.$extension"
     }
 }
 
