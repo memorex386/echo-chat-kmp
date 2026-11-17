@@ -45,6 +45,7 @@ End-to-end checks, in `ChatEndToEndTest` (androidApp) and `ChatEndToEndUITests` 
 | PHOTO-04 | Echo's reply to a photo carries the same photo, with "You said: caption" or, without a caption, "You sent a photo". | `SimulatedChatServiceTest` (core:network, common); `ChatRepositoryTest` (core:data, common) | ✅ |
 | PHOTO-05 | Tapping a photo opens it full screen. Back returns to the chat where I left it. | `ChatNavigationTest` (shared, common) | ✅ |
 | PHOTO-07 | If a picked photo can't be copied into the app, it isn't attached, and the chat says "Couldn't attach the photo". While a photo is still being copied in, Send waits, so the photo goes with the message I picked it for. New in this version: found in a code review. | `ChatViewModelTest` (feature:chat), `ChatRouteTest` (shared), both common | ✅ |
+| PHOTO-08 | Photos last as long as the chat. On desktop and iOS, starting the app clears the photos the last run left behind. Android keeps them, since it can bring back a draft photo after ending the app, and leaves its cache for the system to clear. The web keeps photos in memory. New in this version: found in a code review. | `CacheImageStoreTest` (core:data, desktop and iOS) | ✅ |
 
 End-to-end check on iOS, in `ChatEndToEndUITests` (iosApp): it picks the newest photo in the simulator's library, sends it, sees "You sent a photo", opens Echo's photo full screen and comes back.
 

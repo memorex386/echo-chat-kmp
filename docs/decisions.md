@@ -277,3 +277,7 @@ A second agent reviewed the code and a third audited the tests. These are the fi
 - **Asking once** (NOTIFY-05). Only Android and iOS remembered that they'd asked; a browser asked again on every send until I answered. The once-only rule is shared code now. Send also reports whether it sent anything, so an empty Send doesn't ask.
 - **Following only my new messages** (CHAT-14). The list took "the newest message is mine" to mean I'd just sent it, so a delete or Undo while I was scrolled up jumped to the bottom. It now follows only a message of mine newer than any it has seen.
 - **A failed photo copy says nothing** (ACTION-02). On iOS and the web, a photo that couldn't be read as a picture returned quietly, which counted as copied. It now fails like any refused copy.
+
+## D40: The photo store's own tests, and clearing old photos (2026-11-17)
+- **Tests.** `CacheImageStore` is the photo store on Android, iOS and desktop, and had no tests of its own. It now takes its folder as a parameter, defaulting to the cache's `images`, so `CacheImageStoreTest` can use a folder of its own on the JVM and the iOS simulator.
+- **Clearing** (PHOTO-08). Messages are kept in memory, but photos were kept on disk forever: desktop's folder grew with every photo ever attached. Desktop and iOS clear it when the app starts, since neither brings a draft back. Android doesn't, because a draft photo or a camera shot can outlive the process there.
