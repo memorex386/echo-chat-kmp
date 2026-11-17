@@ -8,6 +8,7 @@ import com.echochat.core.testing.testPhotoFile
 import com.echochat.core.testing.TestNotifier
 import com.echochat.core.model.Author
 import com.echochat.core.model.Message
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
@@ -56,16 +57,33 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `ACTION-05 deleting hides the message and offers to undo it`() = runTest {
-        val events = collectEvents()
+    fun `ACTION-05 deleting hides the message and offers to undo it`() {
         val oops = Message(7, Author.Me, "Oops")
 
         viewModel.delete(oops)
         assertEquals(listOf(7L), chatRepository.deleted)
-        assertEquals(listOf<ChatEvent>(ChatEvent.Deleted(oops)), events)
+        assertEquals(oops, viewModel.pendingUndo.value)
 
         viewModel.undoDelete(oops)
         assertEquals(emptyList(), chatRepository.deleted)
+        assertNull(viewModel.pendingUndo.value)
+    }
+
+    // The offer is state, not a one-time event, so a screen rebuilt before it ends shows it again.
+    @Test
+    fun `ACTION-05 the offer stays until it runs out and a second delete replaces it`() {
+        val one = Message(1, Author.Me, "One")
+        val two = Message(2, Author.Me, "Two")
+
+        viewModel.delete(one)
+        viewModel.delete(two)
+        assertEquals(two, viewModel.pendingUndo.value)
+
+        viewModel.undoOfferEnded(one)
+        assertEquals(two, viewModel.pendingUndo.value, "An older offer ending leaves the newer one")
+
+        viewModel.undoOfferEnded(two)
+        assertNull(viewModel.pendingUndo.value)
     }
 
     @Test
@@ -187,6 +205,35 @@ class ChatViewModelTest {
         viewModel.startCamera()
         viewModel.onCameraResult(saved = true)
         assertEquals(TestImageStore.Shot.image, viewModel.attachment)
+    }
+
+    // A cloud photo while offline, or a full disk.
+    @Test
+    fun `PHOTO-07 a photo that can't be copied in isn't attached and the chat says so`() = runTest {
+        val events = collectEvents()
+        imageStore.importWorks = false
+
+        viewModel.onPhotoPicked(pickedPhoto)
+
+        assertNull(viewModel.attachment)
+        assertEquals(listOf<ChatEvent>(ChatEvent.PhotoNotAttached), events)
+    }
+
+    @Test
+    fun `PHOTO-07 Send waits while a photo is being copied in so the photo goes with its caption`() {
+        val copying = CompletableDeferred<Unit>()
+        imageStore.importGate = copying
+        viewModel.onDraftChange("Sunset")
+
+        viewModel.onPhotoPicked(pickedPhoto)
+        assertFalse(viewModel.canSend)
+        viewModel.send()
+        assertEquals(emptyList(), chatRepository.sent)
+
+        copying.complete(Unit)
+        assertTrue(viewModel.canSend)
+        viewModel.send()
+        assertEquals(listOf(Sent("Sunset", TestImageStore.Imported)), chatRepository.sent)
     }
 
     @Test

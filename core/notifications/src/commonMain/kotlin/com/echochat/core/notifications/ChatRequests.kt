@@ -1,17 +1,19 @@
 package com.echochat.core.notifications
 
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 
 /** Asks the app to bring the chat forward, as tapping one of Echo's notifications does. */
 class ChatRequests {
-    private val requests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    // Holds one request until the chat reads it. Android can rebuild the app from a tap, and the
+    // tap arrives before the rebuilt chat is listening.
+    private val requests = Channel<Unit>(Channel.CONFLATED)
 
-    /** One item for each request. A request while nothing is listening is dropped: the chat is the first screen anyway. */
-    val requested: SharedFlow<Unit> = requests.asSharedFlow()
+    /** Requests, for the app's one listener. Each is read once; several made before it listens count as one. */
+    val requested: Flow<Unit> = requests.receiveAsFlow()
 
     fun request() {
-        requests.tryEmit(Unit)
+        requests.trySend(Unit)
     }
 }

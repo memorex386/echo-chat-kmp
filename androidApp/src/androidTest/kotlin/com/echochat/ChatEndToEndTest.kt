@@ -45,7 +45,7 @@ class ChatEndToEndTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun sendingHelloShowsTypingDotsThenTheEcho() {
+    fun `CHAT-04_sendingHelloShowsTypingDotsThenTheEcho`() {
         composeRule.onNode(hasSetTextAction()).performTextInput("Hello")
         composeRule.onNodeWithContentDescription("Send").performClick()
 
@@ -80,7 +80,7 @@ class ChatEndToEndTest {
     // ACTION-03 through the real FileProvider, which Robolectric can't run on Windows. It reads the
     // link rather than the clipboard: the emulator copies each clip to the computer and back as text.
     @Test
-    fun aCopiedPhotoIsSharedAsAContentLinkOtherAppsCanOpen() {
+    fun `ACTION-03_aCopiedPhotoIsSharedAsAContentLinkOtherAppsCanOpen`() {
         val app = composeRule.activity.application
         val photo = File(app.cacheDir, "images/sunset.jpg").apply { parentFile?.mkdirs(); writeBytes(byteArrayOf(1, 2, 3)) }
 

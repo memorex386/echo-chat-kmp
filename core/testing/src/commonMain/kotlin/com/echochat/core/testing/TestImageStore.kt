@@ -4,6 +4,7 @@ import com.echochat.core.data.CameraShot
 import com.echochat.core.data.ImageStore
 import com.echochat.core.model.Image
 import io.github.vinceglb.filekit.PlatformFile
+import kotlinx.coroutines.CompletableDeferred
 
 /** Hands out fixed images instead of touching the file system, and records what was saved. */
 class TestImageStore : ImageStore {
@@ -11,7 +12,17 @@ class TestImageStore : ImageStore {
     var saveWorks = true
     val saved = mutableListOf<Image>()
 
-    override suspend fun import(photo: PlatformFile) = Imported
+    /** Whether copying a photo in works. When it doesn't, it fails as a full disk would. */
+    var importWorks = true
+
+    /** When set, copying a photo in waits for it, as a large photo would. */
+    var importGate: CompletableDeferred<Unit>? = null
+
+    override suspend fun import(photo: PlatformFile): Image {
+        importGate?.await()
+        if (!importWorks) error("No space left for the photo")
+        return Imported
+    }
 
     override fun newCameraShot() = Shot
 

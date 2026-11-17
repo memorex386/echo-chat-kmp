@@ -3,11 +3,15 @@ package com.echochat.feature.chat
 import com.echochat.core.data.CacheImageStore
 import com.echochat.core.testing.TestClipboard
 import io.github.vinceglb.filekit.PlatformFile
+import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import kotlinx.coroutines.test.runTest
 import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.NSTemporaryDirectory
+import platform.Foundation.NSString
+import platform.Foundation.NSUTF8StringEncoding
+import platform.Foundation.create
 import platform.Foundation.writeToFile
 import platform.UIKit.UIGraphicsImageRenderer
 import platform.UIKit.UIGraphicsImageRendererFormat
@@ -15,9 +19,12 @@ import platform.UIKit.UIImagePNGRepresentation
 import platform.UIKit.UIPasteboard
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
-@OptIn(ExperimentalForeignApi::class)
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 class PhotoClipTest {
 
     @Test
@@ -36,5 +43,17 @@ class PhotoClipTest {
 
         val pasted = assertNotNull(pasteboard.image, "Nothing was copied")
         assertEquals(40.0 to 30.0, pasted.size.useContents { width to height })
+    }
+
+    // Copying it would otherwise count as done, and the app would say "Copied".
+    @Test
+    fun `ACTION-02 a photo that can't be read as a picture isn't copied`() = runTest {
+        val path = NSTemporaryDirectory() + "not-a-photo.jpg"
+        assertTrue(NSString.create(string = "Not a picture").writeToFile(path, atomically = true, encoding = NSUTF8StringEncoding, error = null))
+        val pasteboard = UIPasteboard.pasteboardWithUniqueName()
+
+        assertFails { TestClipboard(pasteboard).copyPhoto(PlatformFile(path), "Message from Echo Chat") }
+
+        assertNull(pasteboard.image)
     }
 }

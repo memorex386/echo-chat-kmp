@@ -189,4 +189,29 @@ class ChatRepositoryTest {
         assertEquals("Sunset", messages.single().text)
         assertEquals(sunset, messages.single().image)
     }
+
+    @Test
+    fun `PHOTO-04 Echo's reply to a photo carries the same photo`() = runTest {
+        val repository = newRepository()
+        val sunset = Image("/cache/images/sunset.jpg")
+
+        repository.send("Sunset", sunset)
+        advanceUntilIdle()
+
+        val reply = repository.messages.first().last()
+        assertEquals(Author.Echo, reply.author)
+        assertEquals("You said: Sunset", reply.text)
+        assertEquals(sunset, reply.image)
+    }
+
+    @Test
+    fun `ACTION-05 deleting my message leaves Echo's reply to it`() = runTest {
+        val repository = newRepository()
+        repository.send("Hello")
+        advanceUntilIdle()
+
+        repository.delete(repository.messages.first().first().id)
+
+        assertEquals(listOf("You said: Hello"), repository.texts())
+    }
 }

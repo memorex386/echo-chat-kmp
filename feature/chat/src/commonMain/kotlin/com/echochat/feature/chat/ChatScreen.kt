@@ -138,6 +138,7 @@ import com.echochat.feature.chat.resources.message_deleted
 import com.echochat.feature.chat.resources.message_placeholder
 import com.echochat.feature.chat.resources.open_photo_from_echo
 import com.echochat.feature.chat.resources.open_photo_from_you
+import com.echochat.feature.chat.resources.photo_not_attached
 import com.echochat.feature.chat.resources.photo_not_saved
 import com.echochat.feature.chat.resources.photo_saved
 import com.echochat.feature.chat.resources.remove_photo
@@ -163,6 +164,7 @@ import com.echochat.core.designsystem.resources.Res as DesignRes
 fun ChatRoute(
     onOpenImage: (Message) -> Unit,
     viewModel: ChatViewModel = koinViewModel(),
+    askToNotify: () -> Unit = rememberNotificationPermissionRequest(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     // Android's photo picker, iOS's photo picker, or a file dialog for images on desktop.
@@ -176,27 +178,33 @@ fun ChatRoute(
         viewModel.onChatShown()
         onPauseOrDispose { viewModel.onChatHidden() }
     }
-    val askToNotify = rememberNotificationPermissionRequest()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val deleted = stringResource(Res.string.message_deleted)
     val undo = stringResource(Res.string.undo)
     val saved = stringResource(Res.string.photo_saved)
     val notSaved = stringResource(Res.string.photo_not_saved)
+    val notAttached = stringResource(Res.string.photo_not_attached)
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             when (event) {
-                // Short, not Material's default for an action (shown until tapped): the offer goes
-                // on its own. Android lengthens it for people who ask for more time to act.
-                is ChatEvent.Deleted -> {
-                    val result = snackbarHostState.showSnackbar(deleted, actionLabel = undo, duration = SnackbarDuration.Short)
-                    if (result == SnackbarResult.ActionPerformed) viewModel.undoDelete(event.message)
-                }
                 ChatEvent.PhotoSaved -> snackbarHostState.showSnackbar(saved)
                 ChatEvent.PhotoNotSaved -> snackbarHostState.showSnackbar(notSaved)
+                ChatEvent.PhotoNotAttached -> snackbarHostState.showSnackbar(notAttached)
             }
         }
     }
+    // Short, not Material's default for an action (shown until tapped): the offer goes on its own.
+    // Android lengthens it for people who ask for more time to act. If the chat leaves the screen
+    // first, the offer is still open, and shows again when the chat is back.
+    val undoable = viewModel.pendingUndo.collectAsStateWithLifecycle().value
+    LaunchedEffect(undoable) {
+        if (undoable == null) return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(deleted, actionLabel = undo, duration = SnackbarDuration.Short)
+        if (result == SnackbarResult.ActionPerformed) viewModel.undoDelete(undoable) else viewModel.undoOfferEnded(undoable)
+    }
+    // Asked once, whatever the answer, and saved, so a rotation or the photo viewer doesn't ask again.
+    var askedToNotify by rememberSaveable { mutableStateOf(false) }
     val copy = rememberCopy(snackbarHostState)
     val savePhoto = rememberSavePhoto(viewModel)
 
@@ -207,8 +215,10 @@ fun ChatRoute(
         canSend = viewModel.canSend,
         onDraftChange = viewModel::onDraftChange,
         onSend = {
-            viewModel.send()
-            askToNotify()
+            if (viewModel.send() && !askedToNotify) {
+                askedToNotify = true
+                askToNotify()
+            }
         },
         onPickPhoto = pickPhoto::launch,
         onTakePhoto = takePhoto?.let { launch -> { launch(viewModel.startCamera()) } },
@@ -387,13 +397,17 @@ private fun MessageList(
     var atBottom by rememberSaveable { mutableStateOf(true) }
     var followedSize by rememberSaveable { mutableIntStateOf(messages.size) }
     var followedReplying by rememberSaveable { mutableStateOf(isReplying) }
+    var followedNewestId by rememberSaveable { mutableLongStateOf(messages.lastOrNull()?.id ?: 0L) }
 
-    // Follow new messages only from the bottom, or when I sent them.
-    val follow = atBottom || messages.lastOrNull()?.author == Author.Me
+    // Follow new messages only from the bottom, or when I've just sent one. A message of mine
+    // that a delete leaves last, or that Undo brings back, isn't new: its id is one already seen.
+    val newest = messages.lastOrNull()
+    val follow = atBottom || (newest != null && newest.author == Author.Me && newest.id > followedNewestId)
     LaunchedEffect(messages.size, isReplying) {
         if (messages.size == followedSize && isReplying == followedReplying) return@LaunchedEffect
         followedSize = messages.size
         followedReplying = isReplying
+        if (newest != null && newest.id > followedNewestId) followedNewestId = newest.id
         if (!follow) return@LaunchedEffect
         following = true
         try {
@@ -777,7 +791,7 @@ private fun Composer(
                         capitalization = KeyboardCapitalization.Sentences,
                         imeAction = ImeAction.Send,
                     ),
-                    keyboardActions = KeyboardActions(onSend = { onSend() }),
+                    keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
                     modifier = Modifier
                         .weight(1f)
                         .focusRequester(focusRequester)
